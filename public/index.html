@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexora — Login</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        :root {
+            --bg: #0c0d0f; --bg-elev: #131416; --bg-surf: #18191d;
+            --border: rgba(255,255,255,0.07); --border-strong: rgba(255,255,255,0.12);
+            --text: #f0f1f3; --text-sec: #a0a5b1; --text-mut: #5a6072;
+            --accent: #3b82f6; --accent-hover: #2563eb;
+            --success: #22c55e; --danger: #ef4444;
+        }
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text);
+        }
+        .container {
+            width: 100%;
+            max-width: 420px;
+            padding: 20px;
+        }
+        .logo {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        .logo-icon {
+            width: 48px; height: 48px;
+            background: var(--accent);
+            border-radius: 12px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 12px;
+        }
+        .logo-icon svg { width: 24px; height: 24px; }
+        .logo h1 {
+            font-size: 28px;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+        }
+        .card {
+            background: var(--bg-elev);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 28px;
+        }
+        .tabs {
+            display: flex;
+            margin-bottom: 24px;
+            border-bottom: 1px solid var(--border);
+        }
+        .tab {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            color: var(--text-mut);
+            font-weight: 500;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        .tab.active {
+            color: var(--text);
+            border-bottom-color: var(--accent);
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-sec);
+            margin-bottom: 6px;
+        }
+        .form-group input {
+            width: 100%;
+            height: 44px;
+            background: var(--bg-surf);
+            border: 1px solid var(--border-strong);
+            border-radius: 8px;
+            padding: 0 14px;
+            font-size: 14px;
+            color: var(--text);
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .form-group input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+        }
+        .form-group input::placeholder { color: var(--text-mut); }
+        .btn {
+            width: 100%;
+            height: 44px;
+            background: var(--accent);
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            color: white;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+        }
+        .btn:hover { background: var(--accent-hover); }
+        .btn:active { transform: scale(0.98); }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        
+        .divider {
+            display: flex;
+            align-items: center;
+            margin: 20px 0;
+            color: var(--text-mut);
+            font-size: 12px;
+        }
+        .divider::before, .divider::after {
+            content: ''; flex: 1; height: 1px; background: var(--border);
+        }
+        .divider span { padding: 0 12px; }
+        
+        .oauth-btns { display: flex; gap: 10px; }
+        .oauth-btn {
+            flex: 1;
+            height: 40px;
+            background: var(--bg-surf);
+            border: 1px solid var(--border-strong);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            color: var(--text-sec);
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .oauth-btn:hover { background: var(--bg-elev); }
+        
+        .alert {
+            padding: 12px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            margin-bottom: 16px;
+            display: none;
+        }
+        .alert.show { display: block; }
+        .alert.error {
+            background: rgba(239,68,68,0.1);
+            border: 1px solid rgba(239,68,68,0.2);
+            color: #ef4444;
+        }
+        .alert.success {
+            background: rgba(34,197,94,0.1);
+            border: 1px solid rgba(34,197,94,0.2);
+            color: #22c55e;
+        }
+        
+        .hidden { display: none; }
+        
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        .links {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 13px;
+            color: var(--text-mut);
+        }
+        .links a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+        
+        /* Responsive */
+        @media (max-width: 480px) {
+            .container { padding: 16px; }
+            .logo h1 { font-size: 24px; }
+            .card { padding: 24px 20px; }
+            .title { font-size: 18px; }
+            .input-group input { height: 44px; font-size: 15px; }
+            .btn { height: 44px; font-size: 15px; }
+            .subtitle { font-size: 13px; }
+        }
+        
+        @media (max-width: 360px) {
+            .container { padding: 12px; }
+            .logo h1 { font-size: 22px; }
+            .card { padding: 20px 16px; }
+            .title { font-size: 16px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">
+            <div class="logo-icon">
+                <svg viewBox="0 0 16 16" fill="white">
+                    <path d="M3 3h4v4H3zM9 3h4v4H9zM3 9h4v4H3zM11 9l2 4-4-2 2-2z"/>
+                </svg>
+            </div>
+            <h1>Nexora</h1>
+        </div>
+        
+        <div class="card">
+            <div class="alert" id="alert"></div>
+            
+            <div class="tabs">
+                <div class="tab active" data-tab="login">Iniciar sesión</div>
+                <div class="tab" data-tab="register">Registrarse</div>
+            </div>
+            
+            <!-- Login Form -->
+            <form id="login-form">
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="login-email" placeholder="tu@email.com" required>
+                </div>
+                <div class="form-group">
+                    <label>Contraseña</label>
+                    <input type="password" id="login-password" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="btn" id="login-btn">Iniciar sesión</button>
+            </form>
+            
+            <!-- Register Form -->
+            <form id="register-form" class="hidden">
+                <div class="form-group">
+                    <label>Nombre</label>
+                    <input type="text" id="reg-nombre" placeholder="Tu nombre" required>
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="reg-email" placeholder="tu@email.com" required>
+                </div>
+                <div class="form-group">
+                    <label>Contraseña</label>
+                    <input type="password" id="reg-password" placeholder="Mínimo 6 caracteres" required minlength="6">
+                </div>
+                <div class="form-group">
+                    <label>Confirmar contraseña</label>
+                    <input type="password" id="reg-confirm" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="btn" id="reg-btn">Crear cuenta</button>
+            </form>
+            
+            <div class="divider">
+                <span>o continuar con</span>
+            </div>
+            
+            <div class="oauth-btns">
+                <button class="oauth-btn" type="button" onclick="showAlert('info', 'Próximamente', 'Google OAuth')">
+                    <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                    Google
+                </button>
+                <button class="oauth-btn" type="button" onclick="showAlert('info', 'Próximamente', 'GitHub OAuth')">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.02 10.02 0 0 0 22 12.017C22 6.484 17.522 2 12 2z"/></svg>
+                    GitHub
+                </button>
+            </div>
+        </div>
+        
+        <div class="links">
+            <a onclick="showAlert('info', 'Ayuda', 'Contacta al administrador')">¿Olvidaste tu contraseña?</a>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = '/api';
+        let token = localStorage.getItem('nexora_token');
+        
+        // If already logged in, redirect
+        if (token) {
+            window.location.href = '/dashboard.html';
+        }
+        
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                
+                const isLogin = tab.dataset.tab === 'login';
+                document.getElementById('login-form').classList.toggle('hidden', !isLogin);
+                document.getElementById('register-form').classList.toggle('hidden', isLogin);
+                hideAlert();
+            });
+        });
+        
+        // Alert functions
+        function showAlert(type, title, message) {
+            const alert = document.getElementById('alert');
+            alert.className = 'alert show ' + type;
+            alert.innerHTML = `<strong>${title}</strong><br>${message}`;
+        }
+        
+        function hideAlert() {
+            document.getElementById('alert').className = 'alert';
+        }
+        
+        // Login
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('login-btn');
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span>';
+            
+            try {
+                const res = await fetch(API_URL + '/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await res.json();
+                
+                if (data.success) {
+                    localStorage.setItem('nexora_token', data.data.token.access_token);
+                    localStorage.setItem('nexora_user', JSON.stringify(data.data.user));
+                    showAlert('success', '¡Bienvenido!', 'Redirigiendo...');
+                    setTimeout(() => window.location.href = '/dashboard.html', 1000);
+                } else {
+                    showAlert('error', 'Error', data.error?.message || 'Credenciales inválidas');
+                }
+            } catch (err) {
+                showAlert('error', 'Error', 'No se pudo conectar al servidor');
+            }
+            
+            btn.disabled = false;
+            btn.innerHTML = 'Iniciar sesión';
+        });
+        
+        // Register
+        document.getElementById('register-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('reg-btn');
+            const nombre = document.getElementById('reg-nombre').value;
+            const email = document.getElementById('reg-email').value;
+            const password = document.getElementById('reg-password').value;
+            const confirm = document.getElementById('reg-confirm').value;
+            
+            if (password !== confirm) {
+                showAlert('error', 'Error', 'Las contraseñas no coinciden');
+                return;
+            }
+            
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span>';
+            
+            try {
+                const res = await fetch(API_URL + '/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email,
+                        password,
+                        confirm_password: confirm,
+                        nombre
+                    })
+                });
+                
+                const data = await res.json();
+                
+                if (data.success) {
+                    localStorage.setItem('nexora_token', data.data.token.access_token);
+                    localStorage.setItem('nexora_user', JSON.stringify(data.data.user));
+                    showAlert('success', '¡Registro exitoso!', 'Redirigiendo...');
+                    setTimeout(() => window.location.href = '/dashboard.html', 1000);
+                } else {
+                    showAlert('error', 'Error', data.error?.message || 'No se pudo registrar');
+                }
+            } catch (err) {
+                showAlert('error', 'Error', 'No se pudo conectar al servidor');
+            }
+            
+            btn.disabled = false;
+            btn.innerHTML = 'Crear cuenta';
+        });
+    </script>
+</body>
+</html>

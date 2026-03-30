@@ -1,0 +1,7 @@
+.env
+*.db
+nexora
+server
+server.log
+*.exe
+.DS_Store

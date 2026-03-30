@@ -1,0 +1,146 @@
+# ================================================
+# NEXORA E-COMMERCE - CASBIN POLICIES
+# ================================================
+# Formato: p, <rol>, <recurso>, <acción>
+# 
+# Recursos disponibles:
+# - users, roles, permissions
+# - products, categories, tags
+# - orders, invoices
+# - reports, settings
+# - customers, payments, inventory
+#
+# Acciones disponibles:
+# - create, read, update, delete
+# - assign, export, send, process
+# - cancel
+
+# ==================== SUPERADMIN ====================
+# Acceso total al sistema
+p, superadmin, users, create
+p, superadmin, users, read
+p, superadmin, users, update
+p, superadmin, users, delete
+
+p, superadmin, roles, create
+p, superadmin, roles, read
+p, superadmin, roles, update
+p, superadmin, roles, delete
+p, superadmin, roles, assign
+
+p, superadmin, permissions, read
+
+p, superadmin, products, create
+p, superadmin, products, read
+p, superadmin, products, update
+p, superadmin, products, delete
+
+p, superadmin, categories, create
+p, superadmin, categories, read
+p, superadmin, categories, update
+p, superadmin, categories, delete
+
+p, superadmin, orders, create
+p, superadmin, orders, read
+p, superadmin, orders, update
+p, superadmin, orders, delete
+p, superadmin, orders, cancel
+
+p, superadmin, invoices, create
+p, superadmin, invoices, read
+p, superadmin, invoices, update
+p, superadmin, invoices, send
+
+p, superadmin, reports, read
+p, superadmin, reports, export
+
+p, superadmin, settings, read
+p, superadmin, settings, update
+
+p, superadmin, payments, read
+p, superadmin, payments, process
+
+p, superadmin, customers, read
+p, superadmin, customers, update
+
+p, superadmin, inventory, read
+p, superadmin, inventory, update
+
+# ==================== ADMIN ====================
+# Gestión completa de la tienda
+p, admin, users, create
+p, admin, users, read
+p, admin, users, update
+
+p, admin, roles, read
+p, admin, permissions, read
+
+p, admin, products, create
+p, admin, products, read
+p, admin, products, update
+p, admin, products, delete
+
+p, admin, categories, create
+p, admin, categories, read
+p, admin, categories, update
+p, admin, categories, delete
+
+p, admin, orders, create
+p, admin, orders, read
+p, admin, orders, update
+p, admin, orders, cancel
+
+p, admin, invoices, create
+p, admin, invoices, read
+p, admin, invoices, update
+p, admin, invoices, send
+
+p, admin, reports, read
+p, admin, reports, export
+
+p, admin, settings, read
+p, admin, settings, update
+
+p, admin, payments, read
+p, admin, payments, process
+
+p, admin, customers, read
+p, admin, customers, update
+
+p, admin, inventory, read
+p, admin, inventory, update
+
+# ==================== VENDEDOR ====================
+# Punto de venta
+p, vendedor, products, read
+p, vendedor, categories, read
+
+p, vendedor, orders, create
+p, vendedor, orders, read
+p, vendedor, orders, update
+
+p, vendedor, customers, read
+p, vendedor, inventory, read
+
+# ==================== CONTADOR ====================
+# Reportes y finanzas
+p, contador, orders, read
+p, contador, invoices, create
+p, contador, invoices, read
+p, contador, invoices, update
+p, contador, invoices, send
+
+p, contador, reports, read
+p, contador, reports, export
+
+p, contador, payments, read
+
+p, contador, customers, read
+
+# ==================== CLIENTE ====================
+# Cliente final
+p, cliente, products, read
+p, cliente, categories, read
+
+p, cliente, orders, create
+p, cliente, orders, read

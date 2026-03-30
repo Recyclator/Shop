@@ -1,0 +1,80 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: nexora-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: nexora
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nexora-api
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=password
+      - DB_NAME=nexora
+      - DB_SSL_MODE=disable
+      - JWT_SECRET=super-secret-jwt-key-change-in-production
+      - JWT_EXPIRE_HOURS=168
+      - SERVER_PORT=3000
+      - ENV=development
+      - QR_BASE_URL=https://nexora.co/qr
+      - CASBIN_MODEL_PATH=internal/casbin/model.conf
+      - CASBIN_POLICY_PATH=internal/casbin/policy.csv
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - ./:/app
+
+  # Para desarrollo con Air (reload automático)
+  api-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: nexora-api-dev
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=password
+      - DB_NAME=nexora
+      - DB_SSL_MODE=disable
+      - JWT_SECRET=dev-secret-key
+      - JWT_EXPIRE_HOURS=168
+      - SERVER_PORT=3000
+      - ENV=development
+      - QR_BASE_URL=http://localhost:3000/qr
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - .:/app
+
+volumes:
+  postgres_data:
+
+networks:
+  default:
+    name: nexora-network

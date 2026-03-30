@@ -1,0 +1,473 @@
+package handlers
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/gofiber/fiber/v2"
+	"github.com/nexora/backend/internal/database"
+	"github.com/nexora/backend/internal/middleware"
+	"github.com/nexora/backend/internal/models"
+	"github.com/nexora/backend/internal/utils"
+)
+
+// GetProducts obtiene la lista de productos con paginación y filtros
+// GET /api/products
+func GetProducts(c *fiber.Ctx) error {
+	page := c.QueryInt("page", 1)
+	limit := c.QueryInt("limit", 20)
+	search := c.Query("search", "")
+	categoria := c.QueryInt("categoria", 0)
+	estado := c.Query("estado", "")
+	destacado := c.QueryBool("destacado", false)
+	orden := c.Query("orden", "recientes") // recientes, precio_asc, precio_desc, nombre
+
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 || limit > 100 {
+		limit = 20
+	}
+
+	offset := (page - 1) * limit
+
+	query := database.DB.Model(&models.Product{}).Preload("Categoria").Preload("Tags")
+
+	// Filtros
+	if search != "" {
+		searchPattern := "%" + search + "%"
+		query = query.Where("nombre ILIKE ? OR sku ILIKE ? OR descripcion ILIKE ?", searchPattern, searchPattern, searchPattern)
+	}
+
+	if categoria > 0 {
+		query = query.Where("categoria_id = ?", categoria)
+	}
+
+	if estado != "" {
+		query = query.Where("estado = ?", estado)
+	}
+
+	if destacado {
+		query = query.Where("destacado = ?", true)
+	}
+
+	// Ordenamiento
+	switch orden {
+	case "precio_asc":
+		query = query.Order("precio ASC")
+	case "precio_desc":
+		query = query.Order("precio DESC")
+	case "nombre":
+		query = query.Order("nombre ASC")
+	default:
+		query = query.Order("created_at DESC")
+	}
+
+	// Contar total
+	var total int64
+	query.Count(&total)
+
+	// Obtener página
+	var products []models.Product
+	if err := query.Offset(offset).Limit(limit).Find(&products).Error; err != nil {
+		return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "DB_ERROR", "error al obtener productos")
+	}
+
+	// Convertir a respuestas
+	responses := make([]models.ProductResponse, len(products))
+	for i, p := range products {
+		responses[i] = p.ToResponse()
+	}
+
+	return utils.Paginated(c, fiber.StatusOK, responses, page, limit, total)
+}
+
+// GetProductByID obtiene un producto por ID
+// GET /api/products/:id
+func GetProductByID(c *fiber.Ctx) error {
+	id, err := c.ParamsInt("id")
+	if err != nil {
+		return utils.ErrorWithCode(c, fiber.StatusBadRequest, "INVALID_ID", "ID de producto inválido")
+	}
+
+	var product models.Product
+	if result := database.DB.
+		Preload("Categoria").
+		Preload("Tags").
+		Preload("Variantes").
+		First(&product, id); result.Error != nil {
+		return utils.ErrorWithCode(c, fiber.StatusNotFound, "NOT_FOUND", "producto no encontrado")
+	}
+
+	return utils.SuccessData(c, fiber.StatusOK, product.ToResponse())
+}
+
+// GetProductBySKU obtiene un producto por SKU
+// GET /api/products/sku/:sku
+func GetProductBySKU(c *fiber.Ctx) error {
+	sku := c.Params("sku")
+
+	var product models.Product
+	if result := database.DB.
+		Preload("Categoria").
+		Preload("Tags").
+		Preload("Variantes").
+		Where("sku = ?", sku).First(&product); result.Error != nil {
+		return utils.ErrorWithCode(c, fiber.StatusNotFound, "NOT_FOUND", "producto no encontrado")
+	}
+
+	return utils.SuccessData(c, fiber.StatusOK, product.ToResponse())
+}
+
+// GetProductByBarcode obtiene un producto por código de barras
+// GET /api/products/barcode/:code
+func GetProductByBarcode(c *fiber.Ctx) error {
+	code := c.Params("code")
+
+	var product models.Product
+	if result := database.DB.
+		Preload("Categoria").
+		Preload("Tags").
+		Preload("Variantes").
+		Where("sku = ?", code).First(&product); result.Error != nil {
+		return utils.ErrorWithCode(c, fiber.StatusNotFound, "NOT_FOUND", "producto no encontrado")
+	}
+
+	return utils.SuccessData(c, fiber.StatusOK, product.ToResponse())
+}
+
+// CreateProduct crea un nuevo producto
+// POST /api/products
+func CreateProduct(c *fiber.Ctx) error {
+	currentUser := middleware.GetUser(c)
+	if currentUser == nil {
+		return utils.ErrorWithCode(c, fiber.StatusUnauthorized, "UNAUTHORIZED", "no autorizado")
+	}
+
+	if !currentUser.HasPermission("products.create") {
+		return utils.ErrorWithCode(c, fiber.StatusForbidden, "FORBIDDEN", "no tienes permiso para crear productos")
+	}
+
+	var input models.CreateProductInput
+	if err := c.BodyParser(&input); err != nil {
+		return utils.ErrorWithCode(c, fiber.StatusBadRequest, "INVALID_BODY", "formato de datos inválido")
+	}
+
+	// Validaciones
+	if input.SKU == "" || input.Nombre == "" || input.Precio <= 0 {
+		return utils.ErrorWithCode(c, fiber.StatusBadRequest, "VALIDATION_ERROR", "SKU, nombre y precio son requeridos")
+	}
+
+	// Verificar SKU único
+	var existing models.Product
+	if result := database.DB.Where("sku = ?", input.SKU).First(&existing); result.RowsAffected > 0 {
+		return utils.ErrorWithCode(c, fiber.StatusConflict, "SKU_EXISTS", "el SKU ya existe")
+	}
+
+	// Generar slug
+	product := models.Product{
+		SKU:                  input.SKU,
+		Nombre:               input.Nombre,
+		Slug:                 generateSlug(input.Nombre),
+		Descripcion:          input.Descripcion,
+		DescripcionCorta:     input.DescripcionCorta,
+		Precio:               input.Precio,
+		PrecioAnterior:       input.PrecioAnterior,
+		Costo:                input.Costo,
+		Stock:                input.Stock,
+		StockMinimo:          input.StockMinimo,
+		PermiteStockNegativo: input.PermiteStockNegativo,
+		ControlaInventario:   input.ControlaInventario,
+		CategoriaID:          input.CategoriaID,
+		ImagenPrincipal:      input.ImagenPrincipal,
+		Destacado:            input.Destacado,
+		Nuevo:                input.Nuevo,
+		TiempoEntregaDias:    input.TiempoEntregaDias,
+		MetaTitulo:           input.MetaTitulo,
+		MetaDescripcion:      input.MetaDescripcion,
+		PalabrasClave:        input.PalabrasClave,
+		Estado:               "activo",
+	}
+
+	// Calcular porcentaje de descuento
+	if product.PrecioAnterior > 0 && product.PrecioAnterior > product.Precio {
+		product.PorcentajeDescuento = int(((product.PrecioAnterior - product.Precio) / product.PrecioAnterior) * 100)
+	}
+
+	// Guardar primero para obtener ID
+	if result := database.DB.Create(&product); result.Error != nil {
+		return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "CREATE_ERROR", "error al crear producto")
+	}
+
+	// Generar código de barras usando el SKU
+	product.Barcode = fmt.Sprintf("https://barcode.tec-it.com/barcode.ashx?data=%s&code=Code128&translate-esc=on", product.SKU)
+	database.DB.Save(&product)
+
+	// Asignar tags
+	if len(input.Tags) > 0 {
+		var tags []models.Tag
+		database.DB.Find(&tags, input.Tags)
+		database.DB.Model(&product).Association("Tags").Append(tags)
+	}
+
+	// Cargar relaciones
+	database.DB.Preload("Categoria").Preload("Tags").Preload("Variantes").First(&product, product.ID)
+
+	return utils.Success(c, fiber.StatusCreated, "producto creado exitosamente", product.ToResponse())
+}
+
+// UpdateProduct actualiza un producto
+// PUT /api/products/:id
+func UpdateProduct(c *fiber.Ctx) error {
+	currentUser := middleware.GetUser(c)
+	if currentUser == nil {
+		return utils.ErrorWithCode(c, fiber.StatusUnauthorized, "UNAUTHORIZED", "no autorizado")
+	}
+
+	if !currentUser.HasPermission("products.update") {
+		return utils.ErrorWithCode(c, fiber.StatusForbidden, "FORBIDDEN", "no tienes permiso para actualizar productos")
+	}
+
+	id, err := c.ParamsInt("id")
+	if err != nil {
+		return utils.ErrorWithCode(c, fiber.StatusBadRequest, "INVALID_ID", "ID de producto inválido")
+	}
+
+	var product models.Product
+	if result := database.DB.First(&product, id); result.Error != nil {
+		return utils.ErrorWithCode(c, fiber.StatusNotFound, "NOT_FOUND", "producto no encontrado")
+	}
+
+	var input models.UpdateProductInput
+	if err := c.BodyParser(&input); err != nil {
+		return utils.ErrorWithCode(c, fiber.StatusBadRequest, "INVALID_BODY", "formato de datos inválido")
+	}
+
+	updates := make(map[string]interface{})
+
+	if input.Nombre != "" {
+		updates["nombre"] = input.Nombre
+		updates["slug"] = generateSlug(input.Nombre)
+	}
+	if input.Descripcion != "" {
+		updates["descripcion"] = input.Descripcion
+	}
+	if input.DescripcionCorta != "" {
+		updates["descripcion_corta"] = input.DescripcionCorta
+	}
+	if input.Precio > 0 {
+		updates["precio"] = input.Precio
+		// Recalcular descuento
+		if product.PrecioAnterior > 0 && input.Precio < product.PrecioAnterior {
+			updates["porcentaje_descuento"] = int(((product.PrecioAnterior - input.Precio) / product.PrecioAnterior) * 100)
+		}
+	}
+	if input.PrecioAnterior > 0 {
+		updates["precio_anterior"] = input.PrecioAnterior
+	}
+	if input.Costo > 0 {
+		updates["costo"] = input.Costo
+	}
+	if input.Stock != nil {
+		updates["stock"] = *input.Stock
+	}
+	if input.StockMinimo > 0 {
+		updates["stock_minimo"] = input.StockMinimo
+	}
+	if input.CategoriaID != nil {
+		updates["categoria_id"] = *input.CategoriaID
+	}
+	if input.ImagenPrincipal != "" {
+		updates["imagen_principal"] = input.ImagenPrincipal
+	}
+	if input.Estado != "" {
+		updates["estado"] = input.Estado
+	}
+	if input.Destacado != nil {
+		updates["destacado"] = *input.Destacado
+	}
+	if input.Nuevo != nil {
+		updates["nuevo"] = *input.Nuevo
+	}
+	if input.TiempoEntregaDias > 0 {
+		updates["tiempo_entrega_dias"] = input.TiempoEntregaDias
+	}
+
+	if len(updates) > 0 {
+		if result := database.DB.Model(&product).Updates(updates); result.Error != nil {
+			return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "UPDATE_ERROR", "error al actualizar producto")
+		}
+	}
+
+	// Actualizar tags si se proporcionan
+	if input.Tags != nil {
+		var tags []models.Tag
+		database.DB.Find(&tags, input.Tags)
+		database.DB.Model(&product).Association("Tags").Replace(tags)
+	}
+
+	// Recargar
+	database.DB.Preload("Categoria").Preload("Tags").Preload("Variantes").First(&product, product.ID)
+
+	return utils.Success(c, fiber.StatusOK, "producto actualizado exitosamente", product.ToResponse())
+}
+
+// DeleteProduct elimina un producto
+// DELETE /api/products/:id
+func DeleteProduct(c *fiber.Ctx) error {
+	currentUser := middleware.GetUser(c)
+	if currentUser == nil {
+		return utils.ErrorWithCode(c, fiber.StatusUnauthorized, "UNAUTHORIZED", "no autorizado")
+	}
+
+	if !currentUser.HasPermission("products.delete") {
+		return utils.ErrorWithCode(c, fiber.StatusForbidden, "FORBIDDEN", "no tienes permiso para eliminar productos")
+	}
+
+	id, err := c.ParamsInt("id")
+	if err != nil {
+		return utils.ErrorWithCode(c, fiber.StatusBadRequest, "INVALID_ID", "ID de producto inválido")
+	}
+
+	var product models.Product
+	if result := database.DB.First(&product, id); result.Error != nil {
+		return utils.ErrorWithCode(c, fiber.StatusNotFound, "NOT_FOUND", "producto no encontrado")
+	}
+
+	// Soft delete
+	if result := database.DB.Delete(&product); result.Error != nil {
+		return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "DELETE_ERROR", "error al eliminar producto")
+	}
+
+	return utils.SuccessMessage(c, fiber.StatusOK, "producto eliminado exitosamente")
+}
+
+// SearchProducts busca productos
+// GET /api/products/search?q=...
+func SearchProducts(c *fiber.Ctx) error {
+	q := strings.TrimSpace(c.Query("q", ""))
+	limit := c.QueryInt("limit", 10)
+
+	if q == "" {
+		return utils.ErrorWithCode(c, fiber.StatusBadRequest, "EMPTY_QUERY", "parámetro de búsqueda requerido")
+	}
+
+	searchPattern := "%" + q + "%"
+	var products []models.Product
+
+	if err := database.DB.
+		Where("nombre ILIKE ? OR sku ILIKE ? OR descripcion ILIKE ?", searchPattern, searchPattern, searchPattern).
+		Where("estado = ?", "activo").
+		Preload("Categoria").
+		Limit(limit).
+		Find(&products).Error; err != nil {
+		return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "DB_ERROR", "error al buscar productos")
+	}
+
+	responses := make([]models.ProductResponse, len(products))
+	for i, p := range products {
+		responses[i] = p.ToResponse()
+	}
+
+	return utils.SuccessData(c, fiber.StatusOK, responses)
+}
+
+// GetFeaturedProducts obtiene productos destacados
+// GET /api/products/featured
+func GetFeaturedProducts(c *fiber.Ctx) error {
+	limit := c.QueryInt("limit", 10)
+
+	var products []models.Product
+	if err := database.DB.
+		Where("destacado = ? AND estado = ?", true, "activo").
+		Preload("Categoria").
+		Limit(limit).
+		Order("created_at DESC").
+		Find(&products).Error; err != nil {
+		return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "DB_ERROR", "error al obtener productos")
+	}
+
+	responses := make([]models.ProductResponse, len(products))
+	for i, p := range products {
+		responses[i] = p.ToResponse()
+	}
+
+	return utils.SuccessData(c, fiber.StatusOK, responses)
+}
+
+// GetProductsByCategory obtiene productos por categoría
+// GET /api/products/category/:id
+func GetProductsByCategory(c *fiber.Ctx) error {
+	id, err := c.ParamsInt("id")
+	if err != nil {
+		return utils.ErrorWithCode(c, fiber.StatusBadRequest, "INVALID_ID", "ID de categoría inválido")
+	}
+
+	limit := c.QueryInt("limit", 20)
+
+	var products []models.Product
+	if err := database.DB.
+		Where("categoria_id = ? AND estado = ?", id, "activo").
+		Preload("Categoria").
+		Limit(limit).
+		Order("created_at DESC").
+		Find(&products).Error; err != nil {
+		return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "DB_ERROR", "error al obtener productos")
+	}
+
+	responses := make([]models.ProductResponse, len(products))
+	for i, p := range products {
+		responses[i] = p.ToResponse()
+	}
+
+	return utils.SuccessData(c, fiber.StatusOK, responses)
+}
+
+// GenerateProductQR genera el código QR de un producto
+// POST /api/products/:id/qr
+func GenerateProductQR(c *fiber.Ctx) error {
+	id, err := c.ParamsInt("id")
+	if err != nil {
+		return utils.ErrorWithCode(c, fiber.StatusBadRequest, "INVALID_ID", "ID de producto inválido")
+	}
+
+	var product models.Product
+	if result := database.DB.First(&product, id); result.Error != nil {
+		return utils.ErrorWithCode(c, fiber.StatusNotFound, "NOT_FOUND", "producto no encontrado")
+	}
+
+	barcode := fmt.Sprintf("https://barcode.tec-it.com/barcode.ashx?data=%s&code=Code128&translate-esc=on", product.SKU)
+
+	product.Barcode = barcode
+	database.DB.Save(&product)
+
+	return utils.SuccessData(c, fiber.StatusOK, fiber.Map{
+		"barcode":  barcode,
+		"producto": product.ToResponse(),
+	})
+}
+
+// Helpers
+func generateSlug(nombre string) string {
+	slug := strings.ToLower(nombre)
+	slug = strings.ReplaceAll(slug, " ", "-")
+	slug = strings.ReplaceAll(slug, "_", "-")
+
+	var result strings.Builder
+	for _, r := range slug {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' {
+			result.WriteRune(r)
+		}
+	}
+
+	slug = result.String()
+	for strings.Contains(slug, "--") {
+		slug = strings.ReplaceAll(slug, "--", "-")
+	}
+	return strings.Trim(slug, "-")
+}
+
+// Now retorna el tiempo actual
+func Now() int64 {
+	return 0
+}
