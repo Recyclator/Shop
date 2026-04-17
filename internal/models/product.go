@@ -119,6 +119,7 @@ type CreateProductInput struct {
 	MetaTitulo           string  `json:"meta_titulo"`
 	MetaDescripcion      string  `json:"meta_descripcion"`
 	PalabrasClave        string  `json:"palabras_clave"`
+	TieneVariantes       bool    `json:"tiene_variantes"`
 }
 
 type UpdateProductInput struct {

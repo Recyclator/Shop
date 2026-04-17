@@ -22,30 +22,6 @@ func (ProductImage) TableName() string {
 	return "product_images"
 }
 
-type ProductVariant struct {
-	ID         uint           `gorm:"primaryKey" json:"id"`
-	ProductoID uint           `gorm:"index;not null" json:"producto_id"`
-	SKU        string         `gorm:"size:50;not null" json:"sku"`
-	Nombre     string         `gorm:"size:255;not null" json:"nombre"`
-	Tipo       string         `gorm:"size:50;not null" json:"tipo"`   // talla, color, material, etc.
-	Valor      string         `gorm:"size:100;not null" json:"valor"` // XL, Rojo, Cuero
-	Precio     float64        `json:"precio"`
-	Stock      int            `gorm:"default:0" json:"stock"`
-	Imagen     string         `gorm:"size:500" json:"imagen"`
-	SKUBase    string         `gorm:"size:50" json:"sku_base"`
-	Activa     bool           `gorm:"default:true" json:"activa"`
-	Orden      int            `gorm:"default:0" json:"orden"`
-	CreatedAt  time.Time      `json:"created_at"`
-	UpdatedAt  time.Time      `json:"updated_at"`
-	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
-
-	Producto Product `gorm:"foreignKey:ProductoID" json:"-"`
-}
-
-func (ProductVariant) TableName() string {
-	return "product_variants"
-}
-
 type Tag struct {
 	ID        uint           `gorm:"primaryKey" json:"id"`
 	Nombre    string         `gorm:"size:50;not null;uniqueIndex" json:"nombre"`

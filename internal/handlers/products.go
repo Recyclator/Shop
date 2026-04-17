@@ -31,7 +31,7 @@ func GetProducts(c *fiber.Ctx) error {
 
 	offset := (page - 1) * limit
 
-	query := database.DB.Model(&models.Product{}).Preload("Categoria").Preload("Tags")
+	query := database.DB.Model(&models.Product{}).Preload("Categoria").Preload("Tags").Preload("Variantes")
 
 	// Filtros
 	if search != "" {
@@ -186,6 +186,7 @@ func CreateProduct(c *fiber.Ctx) error {
 		MetaTitulo:           input.MetaTitulo,
 		MetaDescripcion:      input.MetaDescripcion,
 		PalabrasClave:        input.PalabrasClave,
+		TieneVariantes:       input.TieneVariantes,
 		Estado:               "activo",
 	}
 
@@ -470,4 +471,167 @@ func generateSlug(nombre string) string {
 // Now retorna el tiempo actual
 func Now() int64 {
 	return 0
+}
+
+// AdjustProductStock ajusta el stock de un producto
+// POST /api/products/:id/stock/adjust
+func AdjustProductStock(c *fiber.Ctx) error {
+	currentUser := middleware.GetUser(c)
+	if currentUser == nil {
+		return utils.ErrorWithCode(c, fiber.StatusUnauthorized, "UNAUTHORIZED", "no autorizado")
+	}
+
+	if !currentUser.HasPermission("products.update") {
+		return utils.ErrorWithCode(c, fiber.StatusForbidden, "FORBIDDEN", "no tienes permiso para ajustar stock")
+	}
+
+	id, err := c.ParamsInt("id")
+	if err != nil {
+		return utils.ErrorWithCode(c, fiber.StatusBadRequest, "INVALID_ID", "ID de producto inválido")
+	}
+
+	var input models.StockAdjustInput
+	if err := c.BodyParser(&input); err != nil {
+		return utils.ErrorWithCode(c, fiber.StatusBadRequest, "INVALID_BODY", "formato de datos inválido")
+	}
+
+	if input.Cantidad <= 0 || input.Motivo == "" {
+		return utils.ErrorWithCode(c, fiber.StatusBadRequest, "VALIDATION_ERROR", "cantidad y motivo son requeridos")
+	}
+
+	tx := database.DB.Begin()
+
+	var product models.Product
+	if result := tx.First(&product, id); result.Error != nil {
+		tx.Rollback()
+		return utils.ErrorWithCode(c, fiber.StatusNotFound, "NOT_FOUND", "producto no encontrado")
+	}
+
+	if !product.ControlaInventario {
+		tx.Rollback()
+		return utils.ErrorWithCode(c, fiber.StatusBadRequest, "NO_INVENTORY", "este producto no tiene control de inventario")
+	}
+
+	stockAnterior := product.Stock
+	var stockNuevo int
+	var variant *models.ProductVariant
+	var variantID uint
+
+	if input.VariantID != nil {
+		variant = &models.ProductVariant{}
+		if result := tx.First(variant, *input.VariantID); result.Error != nil {
+			tx.Rollback()
+			return utils.ErrorWithCode(c, fiber.StatusNotFound, "NOT_FOUND", "variante no encontrada")
+		}
+		if variant.ProductoID != product.ID {
+			tx.Rollback()
+			return utils.ErrorWithCode(c, fiber.StatusBadRequest, "INVALID_VARIANT", "la variante no pertenece a este producto")
+		}
+		variantID = variant.ID
+		stockAnterior = variant.Stock
+	}
+
+	var tipo string
+	switch input.Tipo {
+	case "entrada":
+		tipo = models.StockEntrada
+		stockNuevo = stockAnterior + input.Cantidad
+	case "salida":
+		tipo = models.StockSalida
+		stockNuevo = stockAnterior - input.Cantidad
+		if stockNuevo < 0 && !product.PermiteStockNegativo {
+			tx.Rollback()
+			return utils.ErrorWithCode(c, fiber.StatusBadRequest, "INSUFFICIENT_STOCK", "stock insuficiente")
+		}
+	case "ajuste":
+		tipo = models.StockCorreccion
+		stockNuevo = input.Cantidad
+	default:
+		tx.Rollback()
+		return utils.ErrorWithCode(c, fiber.StatusBadRequest, "INVALID_TYPE", "tipo de ajuste inválido")
+	}
+
+	if variant != nil {
+		variant.Stock = stockNuevo
+		tx.Save(variant)
+	} else {
+		product.Stock = stockNuevo
+		tx.Save(&product)
+	}
+
+	movimiento := models.StockMovement{
+		ProductoID:    product.ID,
+		VariantID:     &variantID,
+		UsuarioID:     currentUser.ID,
+		Tipo:          tipo,
+		Cantidad:      input.Cantidad,
+		StockAnterior: stockAnterior,
+		StockNuevo:    stockNuevo,
+		Motivo:        input.Motivo,
+	}
+	tx.Create(&movimiento)
+
+	if err := tx.Commit().Error; err != nil {
+		return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "DB_ERROR", "error al guardar ajuste de stock")
+	}
+
+	return utils.SuccessData(c, fiber.StatusOK, fiber.Map{
+		"producto_id":    product.ID,
+		"variant_id":     variantID,
+		"stock_anterior": stockAnterior,
+		"stock_nuevo":    stockNuevo,
+		"movimiento":     movimiento,
+	})
+}
+
+// GetStockAlerts obtiene productos con stock bajo mínimo
+// GET /api/dashboard/stock-alerts
+func GetStockAlerts(c *fiber.Ctx) error {
+	var products []models.Product
+	if err := database.DB.
+		Where("controla_inventario = ? AND stock <= stock_minimo AND stock_minimo > 0 AND estado = ?", true, "activo").
+		Find(&products).Error; err != nil {
+		return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "DB_ERROR", "error al obtener alertas")
+	}
+
+	alerts := make([]models.StockAlertResponse, 0, len(products))
+	for _, p := range products {
+		alert := models.StockAlertResponse{
+			ID:          p.ID,
+			Nombre:      p.Nombre,
+			SKU:         p.SKU,
+			StockActual: p.Stock,
+			StockMinimo: p.StockMinimo,
+			Deficit:     p.StockMinimo - p.Stock,
+		}
+		alerts = append(alerts, alert)
+	}
+
+	var variants []models.ProductVariant
+	database.DB.
+		Preload("Producto").
+		Where("stock <= (SELECT stock_minimo FROM products WHERE id = product_variants.producto_id AND controla_inventario = 1 AND stock_minimo > 0)").
+		Or("stock = 0").
+		Find(&variants)
+
+	for _, v := range variants {
+		if v.Producto.ID != 0 {
+			deficit := v.Producto.StockMinimo - v.Stock
+			if deficit > 0 {
+				variantID := v.ID
+				alerts = append(alerts, models.StockAlertResponse{
+					ID:          v.Producto.ID,
+					Nombre:      v.Producto.Nombre,
+					SKU:         v.SKU,
+					StockActual: v.Stock,
+					StockMinimo: v.Producto.StockMinimo,
+					Deficit:     deficit,
+					VariantID:   &variantID,
+					VariantSKU:  v.SKU,
+				})
+			}
+		}
+	}
+
+	return utils.SuccessData(c, fiber.StatusOK, alerts)
 }

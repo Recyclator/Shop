@@ -1,0 +1,128 @@
+package layout
+
+import (
+	"github.com/nexora/backend/views/partials"
+)
+
+templ Base(title string, activeRoute string, content templ.Component) {
+	<!DOCTYPE html>
+	<html lang="es">
+		<head>
+			<meta charset="UTF-8">
+			<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+			<title>{ title }</title>
+			<script>
+				window.API_URL = '/api';
+				window.token = localStorage.getItem('nexora_token');
+				
+				// Init theme immediately
+				(function() {
+					const userStr = localStorage.getItem('nexora_user');
+					let theme = 'dark';
+					if (userStr) {
+						try {
+							const user = JSON.parse(userStr);
+							theme = user.theme || 'dark';
+						} catch(e) {}
+					} else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+						theme = 'light';
+					}
+					document.documentElement.setAttribute('data-theme', theme);
+					window.currentTheme = theme;
+				})();
+
+				// Global Toggle Theme Function
+				async function toggleTheme() {
+					const html = document.documentElement;
+					const current = html.getAttribute('data-theme');
+					const next = current === 'light' ? 'dark' : 'light';
+					
+					console.log('Switching to theme:', next);
+					html.setAttribute('data-theme', next);
+					window.currentTheme = next;
+					
+					// Update local storage
+					const userStr = localStorage.getItem('nexora_user');
+					if (userStr) {
+						try {
+							const user = JSON.parse(userStr);
+							user.theme = next;
+							localStorage.setItem('nexora_user', JSON.stringify(user));
+						} catch(e) {}
+					}
+					
+					// Sync server
+					if (window.token) {
+						try {
+							await fetch(window.API_URL + '/auth/theme', {
+								method: 'PUT',
+								headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + window.token },
+								body: JSON.stringify({ theme: next })
+							});
+						} catch(e) {}
+					}
+				}
+			</script>
+			<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono&display=swap" rel="stylesheet">
+			<link rel="stylesheet" href="/static/css/main.css">
+			<link rel="stylesheet" href="/static/css/components.css">
+			<script src="https://unpkg.com/htmx.org@2.0.4"></script>
+			<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js" defer></script>
+		</head>
+		<body hx-headers='{"Authorization": "Bearer " + (localStorage.getItem("nexora_token") || "")}'>
+			@partials.Sidebar(activeRoute)
+
+			<div class="main-wrapper">
+				@partials.Topbar(title)
+				<main class="content">
+					@content
+				</main>
+			</div>
+
+			@partials.BottomNav(activeRoute)
+
+			<script>
+				// Auth guard
+				(function() {
+					if (!window.token && window.location.pathname !== '/') { 
+						window.location.href = '/'; 
+					}
+				})();
+
+				// User info display
+				(function() {
+					const userStr = localStorage.getItem('nexora_user');
+					if (userStr) {
+						try {
+							const user = JSON.parse(userStr);
+							const name = user.nombre || user.email;
+							const nameEl = document.getElementById('user-name');
+							const avatarEl = document.getElementById('user-avatar');
+							if (nameEl) nameEl.textContent = name;
+							if (avatarEl) avatarEl.textContent = name.charAt(0).toUpperCase();
+						} catch(e) {}
+					}
+				})();
+
+				// Logout
+				function logout() {
+					localStorage.removeItem('nexora_token');
+					localStorage.removeItem('nexora_user');
+					window.location.href = '/';
+				}
+
+				// Global 401 interceptor
+				const _fetch = window.fetch;
+				window.fetch = function(...args) {
+					return _fetch.apply(this, args).then(res => {
+						if (res.status === 401) {
+							alert('Sesión expirada');
+							logout();
+						}
+						return res;
+					});
+				};
+			</script>
+		</body>
+	</html>
+}

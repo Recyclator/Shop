@@ -237,31 +237,9 @@
 </head>
 <body>
     <div class="app">
-        <header class="topbar">
-            <div class="logo" onclick="location.href='/dashboard.html'">
-                <div class="logo-icon"><svg viewBox="0 0 16 16" fill="white"><path d="M3 3h4v4H3zM9 3h4v4H9zM3 9h4v4H3zM11 9l2 4-4-2 2-2z"/></svg></div>
-                <span>Nexora</span>
-            </div>
-            <div class="search">
-                <input type="text" placeholder="Buscar productos..." id="search-input">
-            </div>
-            <div class="spacer"></div>
-            <div class="user">
-                <div class="avatar" id="user-avatar">?</div>
-                <span id="user-name">Usuario</span>
-            </div>
-            <button class="logout-btn" onclick="logout()">Salir</button>
-        </header>
-        
-        <aside class="sidebar">
-            <div class="nav-label">Principal</div>
-            <div class="nav-item" onclick="location.href='/dashboard.html'"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Dashboard</div>
-            <div class="nav-item active"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>Productos</div>
-            <div class="nav-item" onclick="location.href='/pos.html'"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Ventas</div>
-            <div class="nav-label">Sistema</div>
-            <div class="nav-item" onclick="location.href='/settings.html'"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>Configuración</div>
-        </aside>
-        
+        <div id="topbar-container"></div>
+        <div id="sidebar-container" data-page="products"></div>
+
         <main class="main">
             <div class="page-header">
                 <div>
@@ -360,6 +338,33 @@
                         </div>
                     </div>
                     <div class="form-group">
+                        <label class="form-label">Categoría</label>
+                        <select class="form-input" id="product-categoria">
+                            <option value="">Seleccionar categoría</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Controla Inventario</label>
+                        <select class="form-input" id="product-controla-inventario">
+                            <option value="true">Sí</option>
+                            <option value="false">No</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Tiene Variantes</label>
+                        <select class="form-input" id="product-tiene-variantes" onchange="toggleVariantsSection()">
+                            <option value="false">No</option>
+                            <option value="true">Sí</option>
+                        </select>
+                    </div>
+                    <div id="variants-section" style="display:none;">
+                        <div class="form-group">
+                            <label class="form-label">Atributos de Variantes</label>
+                            <div id="attributes-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="showAttributeSelector()" style="margin-top:8px;">+ Agregar Atributo</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
                         <label class="form-label">Imágenes del Producto</label>
                         <input type="file" class="form-input" id="product-imagenes" accept="image/*" multiple onchange="previewImages(this)">
                         <div id="image-preview" style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;"></div>
@@ -408,20 +413,50 @@
         if (!token) {
             window.location.href = '/index.html';
         }
-        
-        const userStr = localStorage.getItem('nexora_user');
-        if (userStr) {
-            const user = JSON.parse(userStr);
-            document.getElementById('user-name').textContent = user.nombre || user.email;
-            document.getElementById('user-avatar').textContent = user.nombre ? user.nombre.charAt(0).toUpperCase() : '?';
-        }
-        
+
         function logout() {
             localStorage.removeItem('nexora_token');
             localStorage.removeItem('nexora_user');
             window.location.href = '/index.html';
         }
-        
+
+        // Verificar token expirado antes de cada request
+        function checkTokenExpired(data) {
+            if (data.success === false && data.error?.code === 401) {
+                Toast.warning('Sesión expirada', 'Tu sesión ha expirado, redirigiendo al login...');
+                setTimeout(() => logout(), 1500);
+                return true;
+            }
+            return false;
+        }
+
+        async function apiFetch(url, options = {}) {
+            const headers = { 'Authorization': 'Bearer ' + token, ...(options.headers || {}) };
+            if (!(options.body instanceof FormData)) headers['Content-Type'] = options.headers?.['Content-Type'] || 'application/json';
+
+            let res = await fetch(url, { ...options, headers });
+
+            // Si el backend devuelve 401, limpiar token y redirigir
+            if (res.status === 401) {
+                Toast.warning('Sesión expirada', 'Tu sesión ha expirado, redirigiendo al login...');
+                setTimeout(() => logout(), 1500);
+                throw new Error('Token expired');
+            }
+            return res.json().then(d => d);
+        }
+
+        // Intercept 401 globally — token expired redirect
+        const _fetch = window.fetch;
+        window.fetch = function(...args) {
+            return _fetch.apply(this, args).then(res => {
+                if (res.status === 401) {
+                    Toast.warning('Sesión expirada', 'Tu sesión ha expirado, redirigiendo al login...');
+                    setTimeout(logout, 1500);
+                }
+                return res;
+            });
+        };
+
         async function loadProducts() {
             const search = document.getElementById('search-filter').value;
             const status = document.getElementById('status-filter').value;
@@ -447,6 +482,111 @@
                 document.getElementById('products-table').innerHTML = 
                     '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--danger)">Error de conexión</td></tr>';
             }
+        }
+        
+        async function loadCategories() {
+            try {
+                const res = await fetch(`${API_URL}/categories`, {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    const select = document.getElementById('product-categoria');
+                    const filter = document.getElementById('category-filter');
+                    const options = data.data?.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('') || '';
+                    select.innerHTML = '<option value="">Seleccionar categoría</option>' + options;
+                    if (filter) filter.innerHTML = '<option value="">Todas las categorías</option>' + options;
+                }
+            } catch (e) {
+                console.error('Error loading categories:', e);
+            }
+        }
+        
+        async function loadAttributes() {
+            try {
+                const categoriaId = document.getElementById('product-categoria').value;
+                console.log('loadAttributes - categoriaId:', categoriaId);
+                if (!categoriaId) {
+                    window.availableAttributes = [];
+                    return;
+                }
+                const res = await fetch(`${API_URL}/attributes/category/${categoriaId}`);
+                console.log('loadAttributes - response status:', res.status);
+                if (res.ok) {
+                    const data = await res.json();
+                    console.log('loadAttributes - data:', data);
+                    window.availableAttributes = data.data || [];
+                } else {
+                    console.error('loadAttributes - error response:', res.status);
+                    window.availableAttributes = [];
+                }
+            } catch (e) {
+                console.error('Error loading attributes:', e);
+                window.availableAttributes = [];
+            }
+        }
+        
+        function toggleVariantsSection() {
+            const tieneVariantes = document.getElementById('product-tiene-variantes').value === 'true';
+            document.getElementById('variants-section').style.display = tieneVariantes ? 'block' : 'none';
+        }
+        
+        function showAttributeSelector() {
+            console.log('showAttributeSelector called');
+            const categoriaId = document.getElementById('product-categoria').value;
+            console.log('categoriaId:', categoriaId);
+            if (!categoriaId) {
+                alert('Por favor seleccione una categoría primero para ver los atributos disponibles.');
+                document.getElementById('product-categoria').focus();
+                return;
+            }
+            
+            loadAttributes().then(() => {
+                console.log('availableAttributes:', window.availableAttributes);
+                if (!window.availableAttributes || window.availableAttributes.length === 0) {
+                    alert('No hay atributos disponibles para esta categoría. Cree atributos en la categoría primero.');
+                    console.log('No attributes found for category:', categoriaId);
+                    return;
+                }
+                openAttributeModal();
+            }).catch(err => {
+                console.error('Error loading attributes:', err);
+                alert('Error al cargar atributos');
+            });
+        }
+        
+        function openAttributeModal() {
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay';
+            modal.innerHTML = `
+                <div class="modal" style="max-width:400px;">
+                    <div class="modal-header">
+                        <div class="modal-title">Seleccionar Atributo</div>
+                        <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        ${window.availableAttributes.map(a => `
+                            <button class="btn btn-secondary" style="margin:4px;" onclick="addAttributeToProduct(${a.id}, '${a.nombre}')">
+                                ${a.nombre}
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        
+        function addAttributeToProduct(attrId, attrName) {
+            const list = document.getElementById('attributes-list');
+            const div = document.createElement('div');
+            div.style.cssText = 'display:flex;gap:8px;align-items:center;padding:8px;background:var(--bg-surf);border-radius:8px;';
+            div.innerHTML = `
+                <span style="flex:1;font-size:13px;">${attrName}</span>
+                <input type="text" placeholder="Valores (ej: Rojo,Azul,Verde)" style="flex:2;height:32px;background:var(--bg-elev);border:1px solid var(--border);border-radius:6px;padding:0 8px;color:var(--text);font-size:12px;" data-attr-id="${attrId}">
+                <button type="button" onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:18px;">&times;</button>
+            `;
+            list.appendChild(div);
+            document.querySelector('.modal-overlay')?.remove();
         }
         
         function renderProducts(products) {
@@ -564,13 +704,14 @@
                     openModal(p.id);
                 }
             } catch (e) {
-                alert('Error al cargar producto');
+                Toast.error('Error', 'Error al cargar producto');
             }
         }
         
         async function saveProduct() {
             const id = document.getElementById('product-id').value;
             const imagenData = document.getElementById('product-imagenes-data').value;
+            const categoriaId = document.getElementById('product-categoria').value;
             
             const payload = {
                 sku: document.getElementById('product-sku').value,
@@ -580,11 +721,14 @@
                 precio_anterior: parseFloat(document.getElementById('product-precio-anterior').value) || 0,
                 stock: parseInt(document.getElementById('product-stock').value) || 0,
                 stock_minimo: parseInt(document.getElementById('product-stock-minimo').value) || 5,
-                imagen_principal: imagenData || ''
+                imagen_principal: imagenData || '',
+                categoria_id: categoriaId ? parseInt(categoriaId) : null,
+                controla_inventario: document.getElementById('product-controla-inventario').value === 'true',
+                tiene_variantes: document.getElementById('product-tiene-variantes').value === 'true'
             };
             
             if (!payload.sku || !payload.nombre || payload.precio <= 0) {
-                alert('SKU, nombre y precio son requeridos');
+                Toast.warning('Datos requeridos', 'SKU, nombre y precio son requeridos');
                 return;
             }
             
@@ -602,15 +746,47 @@
                 });
                 
                 if (res.ok) {
+                    const data = await res.json();
+                    const productId = data.data?.id || id;
+                    
+                    if (payload.tiene_variantes) {
+                        await saveProductAttributes(productId);
+                    }
+                    
                     closeModal();
                     loadProducts();
+                    Toast.success('Guardado', 'Producto guardado correctamente');
                 } else {
                     const err = await res.json();
                     console.error('Error:', err);
-                    alert('Error: ' + (err.message || err.error?.message || JSON.stringify(err)));
+                    Toast.error('Error', 'Error: ' + (err.message || err.error?.message || JSON.stringify(err)));
                 }
             } catch (e) {
-                alert('Error de conexión');
+                Toast.error('Error', 'Error de conexión');
+            }
+        }
+        
+        async function saveProductAttributes(productId) {
+            const attributeInputs = document.querySelectorAll('#attributes-list input');
+            for (const input of attributeInputs) {
+                const attrId = input.dataset.attrId;
+                const valores = input.value.split(',').map(v => v.trim()).filter(v => v);
+                if (attrId && valores.length > 0) {
+                    try {
+                        await fetch(`${API_URL}/products/${productId}/variants`, {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': 'Bearer ' + token,
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                atributos: [{ attribute_id: parseInt(attrId), value: valores.join(',') }]
+                            })
+                        });
+                    } catch (e) {
+                        console.error('Error saving variant:', e);
+                    }
+                }
             }
         }
         
@@ -625,17 +801,18 @@
                 
                 if (res.ok) {
                     loadProducts();
+                    Toast.success('Eliminado', 'Producto eliminado correctamente');
                 } else {
-                    alert('Error al eliminar');
+                    Toast.error('Error', 'Error al eliminar');
                 }
             } catch (e) {
-                alert('Error de conexión');
+                Toast.error('Error', 'Error de conexión');
             }
         }
         
         function showBarcode(id, nombre, sku, barcode) {
             if (!barcode) {
-                alert('El producto no tiene código de barras');
+                Toast.warning('Sin código', 'El producto no tiene código de barras');
                 return;
             }
             barcode = decodeURIComponent(barcode);
@@ -672,6 +849,15 @@
         }
         
         loadProducts();
+        loadCategories();
+        
+        document.getElementById('product-categoria').addEventListener('change', function() {
+            loadAttributes();
+            toggleVariantsSection();
+        });
     </script>
+    <script src="/topbar.js"></script>
+    <script src="/sidebar.js"></script>
+    <script src="/toast.js"></script>
 </body>
 </html>

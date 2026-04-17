@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexora — Separados</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        :root {
+            --bg: #0c0d0f; --bg-elev: #131416; --bg-surf: #18191d; --bg-hover: #23252a;
+            --border: rgba(255,255,255,0.07); --border-strong: rgba(255,255,255,0.12);
+            --text: #f0f1f3; --text-sec: #a0a5b1; --text-mut: #5a6072;
+            --accent: #3b82f6; --accent-dim: rgba(59,130,246,0.12);
+            --success: #22c55e; --success-dim: rgba(34,197,94,0.1);
+            --warning: #f59e0b; --danger: #ef4444;
+        }
+        body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+        .app { display: grid; grid-template-columns: 220px 1fr; grid-template-rows: 56px 1fr; height: 100vh; }
+
+        .topbar {
+            grid-column: 1 / -1; background: var(--bg-elev); border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; padding: 0 20px; gap: 16px;
+        }
+        .logo { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 18px; cursor: pointer; }
+        .logo-icon { width: 32px; height: 32px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+        .logo-icon svg { width: 18px; height: 18px; }
+        .search { flex: 1; max-width: 400px; }
+        .search input {
+            width: 100%; height: 36px; background: var(--bg-surf); border: 1px solid var(--border);
+            border-radius: 8px; padding: 0 12px; color: var(--text); font-size: 13px;
+        }
+        .spacer { flex: 1; }
+        .user { display: flex; align-items: center; gap: 12px; cursor: pointer; }
+        .avatar {
+            width: 32px; height: 32px; background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            border-radius: 8px; display: flex; align-items: center; justify-content: center;
+            font-size: 12px; font-weight: 600; cursor: pointer;
+        }
+        .logout-btn {
+            background: var(--bg-surf); border: 1px solid var(--border); border-radius: 8px;
+            padding: 8px 14px; font-size: 12px; color: var(--text-sec); cursor: pointer;
+        }
+        .logout-btn:hover { background: var(--bg-hover); }
+
+        .sidebar {
+            background: var(--bg-elev); border-right: 1px solid var(--border);
+            padding: 16px 12px; overflow-y: auto;
+        }
+        .nav-label {
+            font-size: 10px; font-weight: 600; letter-spacing: 0.8px;
+            text-transform: uppercase; color: var(--text-mut); padding: 8px 12px 8px;
+        }
+        .nav-item {
+            display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+            border-radius: 8px; color: var(--text-sec); font-size: 13px; cursor: pointer;
+            transition: all 0.15s;
+        }
+        .nav-item:hover { background: var(--bg-hover); color: var(--text); }
+        .nav-item.active { background: var(--accent-dim); color: var(--accent); }
+        .nav-item svg { width: 16px; height: 16px; }
+
+        .main { overflow-y: auto; padding: 24px; }
+
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .page-title { font-size: 24px; font-weight: 600; }
+        .page-sub { font-size: 13px; color: var(--text-mut); margin-top: 4px; }
+
+        .btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 10px 16px; border-radius: 8px; font-size: 13px; font-weight: 500;
+            cursor: pointer; border: none; transition: all 0.15s;
+        }
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-secondary { background: var(--bg-surf); color: var(--text-sec); border: 1px solid var(--border); }
+        .btn-secondary:hover { background: var(--bg-hover); }
+        .btn-sm { padding: 6px 10px; font-size: 12px; }
+
+        .toolbar {
+            display: flex; gap: 12px; margin-bottom: 20px;
+            background: var(--bg-elev); padding: 16px; border-radius: 12px; border: 1px solid var(--border);
+            flex-wrap: wrap;
+        }
+        .toolbar input, .toolbar select {
+            height: 36px; background: var(--bg-surf); border: 1px solid var(--border);
+            border-radius: 8px; padding: 0 12px; color: var(--text); font-size: 13px;
+        }
+        .toolbar input { flex: 1; min-width: 200px; }
+        .toolbar select { min-width: 150px; }
+
+        .card {
+            background: var(--bg-elev); border: 1px solid var(--border); border-radius: 12px;
+        }
+        .card-body { padding: 0; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th { text-align: left; padding: 12px 16px; color: var(--text-mut); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+        td { padding: 12px 16px; border-bottom: 1px solid var(--border); color: var(--text-sec); }
+        tr:last-child td { border: none; }
+        tr:hover { background: var(--bg-hover); }
+
+        .price { font-family: 'DM Mono', monospace; color: var(--text); font-weight: 500; }
+
+        .badge {
+            display: inline-flex; align-items: center; gap: 4px;
+            font-size: 10px; font-weight: 500; padding: 3px 8px; border-radius: 4px;
+        }
+        .badge-green { background: var(--success-dim); color: var(--success); }
+        .badge-blue { background: var(--accent-dim); color: var(--accent); }
+        .badge-yellow { background: rgba(245,158,11,0.1); color: var(--warning); }
+        .badge-red { background: rgba(239,68,68,0.1); color: var(--danger); }
+        .badge-gray { background: rgba(90,96,114,0.2); color: var(--text-mut); }
+
+        .actions { display: flex; gap: 4px; }
+        .action-btn {
+            width: 28px; height: 28px; border-radius: 6px; border: none;
+            background: transparent; color: var(--text-mut); cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .action-btn:hover { background: var(--bg-hover); color: var(--text); }
+
+        .pagination { display: flex; justify-content: space-between; align-items: center; padding: 16px; border-top: 1px solid var(--border); }
+        .pagination-info { font-size: 12px; color: var(--text-mut); }
+        .pagination-buttons { display: flex; gap: 8px; }
+
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center;
+            z-index: 100;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: var(--bg-elev); border: 1px solid var(--border); border-radius: 12px;
+            width: 90%; max-width: 700px; max-height: 90vh; overflow-y: auto;
+        }
+        .modal-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 16px 20px; border-bottom: 1px solid var(--border);
+        }
+        .modal-title { font-size: 16px; font-weight: 600; }
+        .modal-close { background: none; border: none; color: var(--text-mut); cursor: pointer; font-size: 20px; }
+        .modal-body { padding: 20px; }
+        .modal-footer { padding: 16px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+
+        .form-group { margin-bottom: 16px; }
+        .form-label { display: block; font-size: 12px; font-weight: 500; color: var(--text-sec); margin-bottom: 6px; }
+        .form-input, .form-select {
+            width: 100%; height: 40px; background: var(--bg-surf); border: 1px solid var(--border);
+            border-radius: 8px; padding: 0 12px; color: var(--text); font-size: 13px;
+        }
+        .form-input:focus, .form-select:focus { outline: none; border-color: var(--accent); }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+        .payments-list { max-height: 300px; overflow-y: auto; }
+        .payment-item {
+            padding: 12px; border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .payment-item:last-child { border-bottom: none; }
+        .payment-amount { font-family: 'DM Mono', monospace; font-weight: 500; color: var(--success); }
+        .payment-date { font-size: 12px; color: var(--text-mut); }
+
+        .balance-display {
+            padding: 16px; background: var(--bg-surf); border-radius: 8px;
+            text-align: center; margin: 16px 0;
+        }
+        .balance-amount { font-family: 'DM Mono', monospace; font-size: 24px; font-weight: 600; color: var(--text); }
+        .balance-label { font-size: 12px; color: var(--text-mut); margin-top: 4px; }
+
+        @media (max-width: 768px) {
+            .app { grid-template-columns: 1fr; grid-template-rows: 56px 48px auto 1fr; }
+            .sidebar {
+                grid-column: 1 / -1; grid-row: 2; display: flex;
+                overflow-x: auto; padding: 8px 12px; gap: 4px;
+                border-right: none; border-bottom: 1px solid var(--border);
+            }
+            .nav-label { display: none; }
+            .nav-item {
+                flex-direction: column; gap: 4px; padding: 8px 12px;
+                font-size: 11px; white-space: nowrap;
+            }
+            .nav-item svg { width: 18px; height: 18px; }
+            .main { padding: 16px; }
+            .page-header { flex-direction: column; gap: 16px; align-items: stretch; }
+            .search { display: none; }
+            .user span { display: none; }
+            .toolbar { flex-direction: column; }
+            .toolbar input, .toolbar select { width: 100%; }
+            table { display: block; overflow-x: auto; }
+            th, td { white-space: nowrap; }
+            .modal { width: 95%; max-height: 85vh; margin: 10px; }
+            .form-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <div id="topbar-container"></div>
+        <div id="sidebar-container" data-page="layaways"></div>
+
+        <main class="main">
+            <div class="page-header">
+                <div>
+                    <h1 class="page-title">Separados</h1>
+                    <p class="page-sub" id="total-layaways">Cargando...</p>
+                </div>
+                <button class="btn btn-primary" onclick="openCreateModal()">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Nuevo Separado
+                </button>
+            </div>
+
+            <div class="toolbar">
+                <input type="text" placeholder="Buscar por cliente, producto..." id="search-filter">
+                <select id="status-filter">
+                    <option value="">Todos los estados</option>
+                    <option value="activo">Activo</option>
+                    <option value="pagado">Pagado</option>
+                    <option value="vencido">Vencido</option>
+                    <option value="cancelado">Cancelado</option>
+                </select>
+                <button class="btn btn-secondary" onclick="loadLayaways()">Filtrar</button>
+                <button class="btn btn-secondary" onclick="checkExpired()" style="margin-left:auto">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    Verificar Vencidos
+                </button>
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Cliente</th>
+                                <th>Producto</th>
+                                <th>Total</th>
+                                <th>Abonado</th>
+                                <th>Saldo</th>
+                                <th>Vencimiento</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="layaways-table"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="pagination" id="pagination"></div>
+        </main>
+    </div>
+
+    <!-- Modal Crear/Editar Separado -->
+    <div class="modal-overlay" id="layaway-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title">Nuevo Separado</div>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="layaway-form">
+                    <div class="form-group">
+                        <label class="form-label">Cliente *</label>
+                        <select class="form-select" id="customer-select" required>
+                            <option value="">Seleccionar cliente...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Producto *</label>
+                        <select class="form-select" id="product-select" required>
+                            <option value="">Seleccionar producto...</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Cantidad *</label>
+                            <input type="number" class="form-input" id="cantidad" min="1" value="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Abono Inicial *</label>
+                            <input type="number" class="form-input" id="abono-inicial" min="0" step="0.01" value="0" required>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                <button class="btn btn-primary" onclick="saveLayaway()">Crear Separado</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Abonos -->
+    <div class="modal-overlay" id="payments-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title">Historial de Abonos</div>
+                <button class="modal-close" onclick="closePaymentsModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="payment-details"></div>
+                <div class="balance-display">
+                    <div class="balance-label">Saldo Pendiente</div>
+                    <div class="balance-amount" id="balance-amount">$0</div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Nuevo Abono</label>
+                    <input type="number" class="form-input" id="payment-amount" min="0.01" step="0.01" placeholder="Monto a abonar...">
+                </div>
+                <div class="payments-list" id="payments-list"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closePaymentsModal()">Cerrar</button>
+                <button class="btn btn-primary" onclick="addPayment()">Registrar Abono</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/toast.js"></script>
+    <script>
+        const API_URL = '/api';
+        let token = localStorage.getItem('nexora_token');
+
+        if (!token) {
+            window.location.href = '/index.html';
+        }
+
+        function logout() {
+            localStorage.removeItem('nexora_token');
+            localStorage.removeItem('nexora_user');
+            window.location.href = '/index.html';
+        }
+
+        const _fetch = window.fetch;
+        window.fetch = function(...args) {
+            return _fetch.apply(this, args).then(res => {
+                if (res.status === 401) {
+                    Toast.warning('Sesión expirada', 'Tu sesión ha expirado, redirigiendo al login...');
+                    setTimeout(logout, 1500);
+                }
+                return res;
+            });
+        };
+
+        let currentPage = 1;
+        let currentSearch = '';
+        let currentStatus = '';
+        let currentLayawayId = null;
+        let customersCache = [];
+        let productsCache = [];
+
+        async function loadLayaways(page = 1) {
+            currentPage = page;
+            try {
+                let url = `${API_URL}/layaways?page=${page}&limit=20`;
+                if (currentSearch) url += '&search=' + encodeURIComponent(currentSearch);
+                if (currentStatus) url += '&estado=' + encodeURIComponent(currentStatus);
+
+                const res = await fetch(url, {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    const layaways = data.data || [];
+                    const meta = data.meta || {};
+                    renderLayaways(layaways);
+                    renderPagination(meta);
+                    document.getElementById('total-layaways').textContent = `${meta.total || 0} separados registrados`;
+                }
+            } catch (e) {
+                Toast.error('Error', 'Error de conexión');
+            }
+        }
+
+        function renderLayaways(layaways) {
+            const tbody = document.getElementById('layaways-table');
+            if (layaways.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-mut)">No hay separados registrados</td></tr>';
+                return;
+            }
+            tbody.innerHTML = layaways.map(l => {
+                const abonado = l.precio_total - l.saldo_pendiente;
+                const estadoClass = l.estado === 'activo' ? 'badge-green' :
+                                   l.estado === 'pagado' ? 'badge-blue' :
+                                   l.estado === 'vencido' ? 'badge-red' : 'badge-gray';
+                return `
+                    <tr>
+                        <td style="font-weight:500;color:var(--text)">${l.customer?.nombre || '-'}</td>
+                        <td>${l.product?.nombre || '-'}</td>
+                        <td class="price">$${formatNumber(l.precio_total)}</td>
+                        <td class="price" style="color:var(--success)">$${formatNumber(abonado)}</td>
+                        <td class="price" style="color:${l.saldo_pendiente > 0 ? 'var(--warning)' : 'var(--success)'}">$${formatNumber(l.saldo_pendiente)}</td>
+                        <td>${new Date(l.fecha_vencimiento).toLocaleDateString('es-CO')}</td>
+                        <td><span class="badge ${estadoClass}">${capitalize(l.estado)}</span></td>
+                        <td>
+                            <div class="actions">
+                                <button class="action-btn" onclick="openPaymentsModal(${l.id})" title="Ver Abonos">
+                                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                                </button>
+                                ${l.estado === 'activo' ? `<button class="action-btn" onclick="cancelLayaway(${l.id})" title="Cancelar">
+                                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                </button>` : ''}
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function renderPagination(meta) {
+            const totalPages = meta.total_pages || 1;
+            if (totalPages <= 1) {
+                document.getElementById('pagination').innerHTML = '';
+                return;
+            }
+            let html = `<div class="pagination-info">Mostrando ${((currentPage - 1) * 20) + 1}-${Math.min(currentPage * 20, meta.total)} de ${meta.total}</div>`;
+            html += '<div class="pagination-buttons">';
+            if (currentPage > 1) html += `<button class="btn btn-sm btn-secondary" onclick="loadLayaways(${currentPage - 1})">Anterior</button>`;
+            if (currentPage < totalPages) html += `<button class="btn btn-sm btn-secondary" onclick="loadLayaways(${currentPage + 1})">Siguiente</button>`;
+            html += '</div>';
+            document.getElementById('pagination').innerHTML = html;
+        }
+
+        async function loadCustomers() {
+            try {
+                const res = await fetch(`${API_URL}/customers?limit=1000`, {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    customersCache = data.data || [];
+                    const select = document.getElementById('customer-select');
+                    select.innerHTML = '<option value="">Seleccionar cliente...</option>' +
+                        customersCache.map(c => `<option value="${c.id}">${c.nombre} (${c.cedula})</option>`).join('');
+                }
+            } catch (e) {}
+        }
+
+        async function loadProducts() {
+            try {
+                const res = await fetch(`${API_URL}/products?limit=1000`, {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    productsCache = data.data || [];
+                    const select = document.getElementById('product-select');
+                    select.innerHTML = '<option value="">Seleccionar producto...</option>' +
+                        productsCache.map(p => `<option value="${p.id}" data-precio="${p.precio}">${p.nombre} - $${formatNumber(p.precio)}</option>`).join('');
+                }
+            } catch (e) {}
+        }
+
+        function openCreateModal() {
+            document.getElementById('modal-title').textContent = 'Nuevo Separado';
+            document.getElementById('layaway-form').reset();
+            document.getElementById('customer-modal')?.classList.remove('active');
+            loadCustomers();
+            loadProducts();
+            document.getElementById('layaway-modal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('layaway-modal').classList.remove('active');
+        }
+
+        async function saveLayaway() {
+            const customer_id = parseInt(document.getElementById('customer-select').value);
+            const product_id = parseInt(document.getElementById('product-select').value);
+            const cantidad = parseInt(document.getElementById('cantidad').value);
+            const abono_inicial = parseFloat(document.getElementById('abono-inicial').value);
+
+            if (!customer_id || !product_id || !cantidad || cantidad < 1) {
+                Toast.warning('Campos requeridos', 'Completa todos los campos');
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_URL}/layaways`, {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ customer_id, product_id, cantidad, abono_inicial })
+                });
+
+                const data = await res.json();
+                if (res.ok) {
+                    Toast.success('Éxito', 'Separado creado exitosamente');
+                    closeModal();
+                    loadLayaways(currentPage);
+                } else {
+                    Toast.error('Error', data.error?.message || 'Error al crear');
+                }
+            } catch (e) {
+                Toast.error('Error', 'Error de conexión');
+            }
+        }
+
+        async function openPaymentsModal(id) {
+            currentLayawayId = id;
+            try {
+                const res = await fetch(`${API_URL}/layaways/${id}/payments`, {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    const layaway = data.separado;
+                    const abonos = data.abonos || [];
+
+                    document.getElementById('balance-amount').textContent = `$${formatNumber(layaway.saldo_pendiente)}`;
+
+                    const details = document.getElementById('payment-details');
+                    details.innerHTML = `
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+                            <div>
+                                <div style="font-size:11px;color:var(--text-mut)">Cliente</div>
+                                <div style="font-weight:500;color:var(--text)">${layaway.customer?.nombre || '-'}</div>
+                            </div>
+                            <div>
+                                <div style="font-size:11px;color:var(--text-mut)">Producto</div>
+                                <div style="font-weight:500;color:var(--text)">${layaway.product?.nombre || '-'}</div>
+                            </div>
+                            <div>
+                                <div style="font-size:11px;color:var(--text-mut)">Total</div>
+                                <div class="price">$${formatNumber(layaway.precio_total)}</div>
+                            </div>
+                            <div>
+                                <div style="font-size:11px;color:var(--text-mut)">Abono Inicial</div>
+                                <div class="price" style="color:var(--success)">$${formatNumber(layaway.abono_inicial)}</div>
+                            </div>
+                        </div>
+                    `;
+
+                    const list = document.getElementById('payments-list');
+                    if (abonos.length === 0) {
+                        list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-mut)">No hay abonos registrados</div>';
+                    } else {
+                        list.innerHTML = abonos.map(a => `
+                            <div class="payment-item">
+                                <div>
+                                    <div class="payment-amount">+$${formatNumber(a.monto)}</div>
+                                    <div class="payment-date">${new Date(a.fecha_pago).toLocaleString('es-CO')}</div>
+                                </div>
+                            </div>
+                        `).join('');
+                    }
+
+                    document.getElementById('payment-amount').value = '';
+                    document.getElementById('payments-modal').classList.add('active');
+                }
+            } catch (e) {
+                Toast.error('Error', 'No se pudo cargar el historial');
+            }
+        }
+
+        function closePaymentsModal() {
+            document.getElementById('payments-modal').classList.remove('active');
+        }
+
+        async function addPayment() {
+            const monto = parseFloat(document.getElementById('payment-amount').value);
+            if (!monto || monto <= 0) {
+                Toast.warning('Monto inválido', 'Ingresa un monto mayor a 0');
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_URL}/layaways/${currentLayawayId}/payments`, {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ monto })
+                });
+
+                const data = await res.json();
+                if (res.ok) {
+                    Toast.success('Éxito', data.message || 'Abono registrado');
+                    openPaymentsModal(currentLayawayId);
+                    loadLayaways(currentPage);
+                } else {
+                    Toast.error('Error', data.error?.message || 'Error al registrar abono');
+                }
+            } catch (e) {
+                Toast.error('Error', 'Error de conexión');
+            }
+        }
+
+        async function cancelLayaway(id) {
+            if (!confirm('¿Estás seguro de cancelar este separado?')) return;
+
+            try {
+                const res = await fetch(`${API_URL}/layaways/${id}/cancel`, {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    Toast.success('Éxito', 'Separado cancelado');
+                    loadLayaways(currentPage);
+                } else {
+                    Toast.error('Error', data.error?.message || 'Error al cancelar');
+                }
+            } catch (e) {
+                Toast.error('Error', 'Error de conexión');
+            }
+        }
+
+        async function checkExpired() {
+            try {
+                const res = await fetch(`${API_URL}/layaways/check-expired`, {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    const vencidos = data.data?.separados_vencidos || 0;
+                    Toast.info('Verificación completada', `${vencidos} separados marcados como vencidos`);
+                    loadLayaways(currentPage);
+                }
+            } catch (e) {
+                Toast.error('Error', 'Error al verificar vencidos');
+            }
+        }
+
+        function formatNumber(num) {
+            return (num || 0).toLocaleString('es-CO');
+        }
+
+        function capitalize(str) {
+            return str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
+        }
+
+        document.getElementById('search-filter').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                currentSearch = e.target.value;
+                loadLayaways(1);
+            }
+        });
+
+        document.getElementById('status-filter').addEventListener('change', (e) => {
+            currentStatus = e.target.value;
+            loadLayaways(1);
+        });
+
+        loadLayaways(1);
+    </script>
+    <script src="/topbar.js"></script>
+    <script src="/sidebar.js"></script>
+</body>
+</html>

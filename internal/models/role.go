@@ -120,9 +120,11 @@ func AssignDefaultPermissions(db *gorm.DB) error {
 	// Vendedor
 	vendedorPerms := []string{
 		"products.read",
+		"categories.read", "categories.create", "categories.update", "categories.delete",
 		"orders.create", "orders.read", "orders.update",
-		"customers.read",
-		"inventory.read",
+		"customers.read", "customers.create", "customers.update",
+		"layaways.read", "layaways.create", "layaways.update",
+		"inventory.read", "inventory.update",
 	}
 	var vendedor Role
 	if err := db.Where("nombre = ?", "vendedor").First(&vendedor).Error; err != nil {

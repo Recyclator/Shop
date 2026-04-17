@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexora — Categorías</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        :root {
+            --bg: #0c0d0f; --bg-elev: #131416; --bg-surf: #18191d; --bg-hover: #23252a;
+            --border: rgba(255,255,255,0.07); --border-strong: rgba(255,255,255,0.12);
+            --text: #f0f1f3; --text-sec: #a0a5b1; --text-mut: #5a6072;
+            --accent: #3b82f6; --accent-dim: rgba(59,130,246,0.12);
+            --success: #22c55e; --success-dim: rgba(34,197,94,0.1);
+            --warning: #f59e0b; --danger: #ef4444;
+        }
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+        .app { display: grid; grid-template-columns: 220px 1fr; grid-template-rows: 56px 1fr; height: 100vh; }
+        
+        .topbar {
+            grid-column: 1 / -1;
+            background: var(--bg-elev);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            gap: 16px;
+        }
+        .logo { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 18px; cursor: pointer; }
+        .logo-icon { width: 32px; height: 32px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+        .logo-icon svg { width: 18px; height: 18px; }
+        .spacer { flex: 1; }
+        .search { flex: 1; max-width: 400px; }
+        .search input {
+            width: 100%; height: 36px; background: var(--bg-surf); border: 1px solid var(--border);
+            border-radius: 8px; padding: 0 12px; color: var(--text); font-size: 13px;
+        }
+        .user { display: flex; align-items: center; gap: 12px; cursor: pointer; }
+        .avatar {
+            width: 32px; height: 32px; background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            border-radius: 8px; display: flex; align-items: center; justify-content: center;
+            font-size: 12px; font-weight: 600;
+        }
+        .logout-btn {
+            background: var(--bg-surf); border: 1px solid var(--border); border-radius: 8px;
+            padding: 8px 14px; font-size: 12px; color: var(--text-sec); cursor: pointer;
+        }
+        
+        .sidebar {
+            background: var(--bg-elev); border-right: 1px solid var(--border);
+            padding: 16px 12px; overflow-y: auto;
+        }
+        .nav-label {
+            font-size: 10px; font-weight: 600; letter-spacing: 0.8px;
+            text-transform: uppercase; color: var(--text-mut); padding: 8px 12px 8px;
+        }
+        .nav-item {
+            display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+            border-radius: 8px; color: var(--text-sec); font-size: 13px; cursor: pointer;
+            transition: all 0.15s;
+        }
+        .nav-item:hover { background: var(--bg-hover); color: var(--text); }
+        .nav-item.active { background: var(--accent-dim); color: var(--accent); }
+        .nav-item svg { width: 16px; height: 16px; }
+        
+        .main { overflow-y: auto; padding: 24px; }
+        
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .page-title { font-size: 24px; font-weight: 600; }
+        
+        .btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 10px 16px; border-radius: 8px; font-size: 13px; font-weight: 500;
+            cursor: pointer; border: none; transition: all 0.15s;
+        }
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-secondary { background: var(--bg-surf); color: var(--text-sec); border: 1px solid var(--border); }
+        .btn-secondary:hover { background: var(--bg-hover); }
+        .btn-danger { background: rgba(239,68,68,0.1); color: var(--danger); }
+        
+        .toolbar {
+            display: flex; gap: 12px; margin-bottom: 20px;
+            background: var(--bg-elev); padding: 16px; border-radius: 12px; border: 1px solid var(--border);
+        }
+        .toolbar input {
+            height: 36px; background: var(--bg-surf); border: 1px solid var(--border);
+            border-radius: 8px; padding: 0 12px; color: var(--text); font-size: 13px;
+        }
+        
+        .table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 12px 16px; color: var(--text-mut); font-weight: 500; font-size: 11px; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+        td { padding: 14px 16px; border-bottom: 1px solid var(--border); font-size: 13px; }
+        tr:hover { background: var(--bg-hover); }
+        
+        .status-badge {
+            display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 500;
+        }
+        .status-badge.active { background: var(--success-dim); color: var(--success); }
+        .status-badge.inactive { background: rgba(239,68,68,0.1); color: var(--danger); }
+        
+        .action-btns { display: flex; gap: 8px; }
+        .action-btn {
+            width: 28px; height: 28px; background: var(--bg-surf); border: 1px solid var(--border);
+            border-radius: 6px; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; color: var(--text-sec);
+        }
+        .action-btn:hover { background: var(--bg-hover); color: var(--text); }
+        
+        .modal-overlay {
+            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+            z-index: 100; align-items: center; justify-content: center;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: var(--bg-elev); border-radius: 12px; width: 100%; max-width: 500px;
+            max-height: 85vh; overflow-y: auto; margin: 20px;
+        }
+        .modal-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 16px 20px; border-bottom: 1px solid var(--border);
+        }
+        .modal-title { font-size: 16px; font-weight: 600; }
+        .modal-close { background: none; border: none; color: var(--text-mut); cursor: pointer; font-size: 20px; }
+        .modal-body { padding: 20px; }
+        .modal-footer { padding: 16px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+        
+        .form-group { margin-bottom: 16px; }
+        .form-label { display: block; font-size: 12px; font-weight: 500; color: var(--text-sec); margin-bottom: 6px; }
+        .form-input {
+            width: 100%; height: 40px; background: var(--bg-surf); border: 1px solid var(--border);
+            border-radius: 8px; padding: 0 12px; color: var(--text); font-size: 13px;
+        }
+        .form-input:focus { outline: none; border-color: var(--accent); }
+        .form-textarea {
+            width: 100%; min-height: 80px; background: var(--bg-surf); border: 1px solid var(--border);
+            border-radius: 8px; padding: 10px 12px; color: var(--text); font-size: 13px; resize: vertical;
+        }
+        
+        .attributes-section { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+        .attribute-item {
+            display: flex; align-items: center; gap: 8px; padding: 8px;
+            background: var(--bg-surf); border-radius: 8px; margin-bottom: 8px;
+        }
+        .attribute-item span { flex: 1; font-size: 13px; }
+        .attribute-values { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+        .attribute-value {
+            padding: 2px 8px; background: var(--bg-hover); border-radius: 4px; font-size: 11px;
+        }
+        
+        @media (max-width: 1024px) {
+            .app { grid-template-columns: 180px 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .app { grid-template-columns: 1fr; grid-template-rows: 56px 48px 1fr; }
+            .sidebar {
+                grid-column: 1 / -1;
+                grid-row: 2;
+                display: flex;
+                overflow-x: auto;
+                padding: 8px 12px;
+                gap: 4px;
+                border-right: none;
+                border-bottom: 1px solid var(--border);
+            }
+            .nav-label { display: none; }
+            .nav-item {
+                flex-direction: column;
+                gap: 4px;
+                padding: 8px 12px;
+                font-size: 11px;
+                white-space: nowrap;
+            }
+            .nav-item svg { width: 18px; height: 18px; }
+            .main { padding: 16px; }
+            .search { display: none; }
+            .user span { display: none; }
+            .topbar { padding: 0 12px; }
+        }
+
+        @media (max-width: 480px) {
+            .main { padding: 12px; }
+            .page-title { font-size: 20px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <div id="topbar-container"></div>
+        <div id="sidebar-container" data-page="categories"></div>
+
+        <div class="main">
+            <div class="page-header">
+                <div>
+                    <div class="page-title">Categorías</div>
+                </div>
+                <button class="btn btn-primary" onclick="openModal()">+ Nueva Categoría</button>
+            </div>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Descripción</th>
+                        <th>Productos</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="categories-table"></tbody>
+            </table>
+        </div>
+    </div>
+    
+    <div class="modal-overlay" id="category-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title">Nueva Categoría</div>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="category-form">
+                    <input type="hidden" id="category-id">
+                    <div class="form-group">
+                        <label class="form-label">Nombre *</label>
+                        <input type="text" class="form-input" id="category-nombre" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Descripción</label>
+                        <textarea class="form-textarea" id="category-descripcion"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Categoría Padre</label>
+                        <select class="form-input" id="category-padre">
+                            <option value="">Ninguna (Categoría principal)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Orden</label>
+                        <input type="number" class="form-input" id="category-orden" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Activa</label>
+                        <select class="form-input" id="category-activa">
+                            <option value="true">Sí</option>
+                            <option value="false">No</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Mostrar en menú</label>
+                        <select class="form-input" id="category-mostrar-menu">
+                            <option value="true">Sí</option>
+                            <option value="false">No</option>
+                        </select>
+                    </div>
+                </form>
+                
+                <div class="attributes-section" id="attributes-section" style="display:none;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                        <div style="font-size:14px;font-weight:600;">Atributos</div>
+                        <button class="btn btn-secondary btn-sm" onclick="openAttributeModal()">+ Agregar Atributo</button>
+                    </div>
+                    <div id="attributes-list"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                <button class="btn btn-primary" onclick="saveCategory()">Guardar</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal-overlay" id="attribute-modal">
+        <div class="modal" style="max-width:400px;">
+            <div class="modal-header">
+                <div class="modal-title">Nuevo Atributo</div>
+                <button class="modal-close" onclick="closeAttributeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Nombre * (ej: Color, Talla)</label>
+                    <input type="text" class="form-input" id="attribute-nombre" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Tipo</label>
+                    <select class="form-input" id="attribute-tipo">
+                        <option value="seleccion">Selección</option>
+                        <option value="texto">Texto</option>
+                        <option value="numero">Número</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Valores * (separados por coma)</label>
+                    <input type="text" class="form-input" id="attribute-valores" placeholder="Rojo, Azul, Verde">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeAttributeModal()">Cancelar</button>
+                <button class="btn btn-primary" onclick="saveAttribute()">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = '/api';
+        let token = localStorage.getItem('nexora_token');
+        let categories = [];
+        let currentCategoryId = null;
+        
+        console.log('Token:', token ? 'present' : 'missing');
+        
+        if (!token) {
+            alert('No hay sesión activa');
+            window.location.href = '/index.html';
+        }
+        
+        function logout() {
+            localStorage.removeItem('nexora_token');
+            localStorage.removeItem('nexora_user');
+            window.location.href = '/index.html';
+        }
+
+        // Intercept 401 globally
+        const _fetch = window.fetch;
+        window.fetch = function(...args) {
+            return _fetch.apply(this, args).then(res => {
+                if (res.status === 401) {
+                    Toast.warning('Sesión expirada', 'Tu sesión ha expirado, redirigiendo al login...');
+                    setTimeout(logout, 1500);
+                }
+                return res;
+            });
+        };
+        
+        function init() {
+            loadCategories();
+        }
+        
+        async function loadCategories() {
+            try {
+                const res = await fetch(`${API_URL}/categories`, {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    categories = data.data || [];
+                    renderCategories(categories);
+                    loadParentOptions();
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+        
+        function renderCategories(list) {
+            if (list.length === 0) {
+                document.getElementById('categories-table').innerHTML = '<tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-mut)">No hay categorías</td></tr>';
+                return;
+            }
+            document.getElementById('categories-table').innerHTML = list.map(c => `
+                <tr>
+                    <td style="font-weight:500;">${c.nombre}</td>
+                    <td style="color:var(--text-mut);max-width:200px;overflow:hidden;text-overflow:ellipsis;">${c.descripcion || '-'}</td>
+                    <td>${c.productos?.length || 0}</td>
+                    <td><span class="status-badge ${c.activa ? 'active' : 'inactive'}">${c.activa ? 'Activa' : 'Inactiva'}</span></td>
+                    <td>
+                        <div class="action-btns">
+                            <button class="action-btn" onclick="editCategory(${c.id})" title="Editar">
+                                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                            </button>
+                            <button class="action-btn" onclick="deleteCategory(${c.id})" title="Eliminar">
+                                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+        
+        function loadParentOptions() {
+            const select = document.getElementById('category-padre');
+            select.innerHTML = '<option value="">Ninguna (Categoría principal)</option>' + 
+                categories.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
+        }
+        
+        function filterCategories() {
+            const q = document.getElementById('search-input').value.toLowerCase();
+            const filtered = categories.filter(c => c.nombre.toLowerCase().includes(q));
+            renderCategories(filtered);
+        }
+        
+        function openModal(id = null) {
+            currentCategoryId = id;
+            document.getElementById('category-modal').classList.add('active');
+            document.getElementById('modal-title').textContent = id ? 'Editar Categoría' : 'Nueva Categoría';
+            document.getElementById('attributes-section').style.display = id ? 'block' : 'none';
+            if (!id) {
+                document.getElementById('category-form').reset();
+                document.getElementById('category-id').value = '';
+                document.getElementById('attributes-list').innerHTML = '';
+            }
+        }
+        
+        function closeModal() {
+            document.getElementById('category-modal').classList.remove('active');
+            currentCategoryId = null;
+        }
+        
+        async function editCategory(id) {
+            try {
+                const res = await fetch(`${API_URL}/categories/${id}`, {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    const c = data.data;
+                    document.getElementById('category-id').value = c.id;
+                    document.getElementById('category-nombre').value = c.nombre;
+                    document.getElementById('category-descripcion').value = c.descripcion || '';
+                    document.getElementById('category-padre').value = c.padre_id || '';
+                    document.getElementById('category-orden').value = c.orden || 0;
+                    document.getElementById('category-activa').value = c.activa ? 'true' : 'false';
+                    document.getElementById('category-mostrar-menu').value = c.mostrar_menu ? 'true' : 'false';
+                    
+                    document.getElementById('attributes-section').style.display = 'block';
+                    loadCategoryAttributes(id);
+                    
+                    openModal(id);
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+        
+        async function loadCategoryAttributes(categoryId) {
+            try {
+                const res = await fetch(`${API_URL}/categories/${categoryId}/attributes`, {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    renderAttributes(data.data || []);
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+        
+        function renderAttributes(attrs) {
+            document.getElementById('attributes-list').innerHTML = attrs.map(a => `
+                <div class="attribute-item">
+                    <span>${a.nombre}</span>
+                    <button class="action-btn" onclick="deleteAttribute(${a.id})" style="width:24px;height:24px;">
+                        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                    <div class="attribute-values">${(a.valores || []).map(v => `<span class="attribute-value">${v}</span>`).join('')}</div>
+                </div>
+            `).join('');
+        }
+        
+        async function saveCategory() {
+            const id = document.getElementById('category-id').value;
+            const payload = {
+                nombre: document.getElementById('category-nombre').value,
+                descripcion: document.getElementById('category-descripcion').value,
+                padre_id: document.getElementById('category-padre').value ? parseInt(document.getElementById('category-padre').value) : null,
+                orden: parseInt(document.getElementById('category-orden').value) || 0,
+                activa: document.getElementById('category-activa').value === 'true',
+                mostrar_menu: document.getElementById('category-mostrar-menu').value === 'true'
+            };
+
+            if (!payload.nombre) {
+                Toast.warning('Campos requeridos', 'El nombre es requerido');
+                return;
+            }
+
+            const url = id ? `${API_URL}/categories/${id}` : `${API_URL}/categories`;
+            const method = id ? 'PUT' : 'POST';
+
+            try {
+                const res = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Authorization': 'Bearer ' + token,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+                if (res.ok) {
+                    Toast.success('Éxito', id ? 'Categoría actualizada' : 'Categoría creada');
+                    closeModal();
+                    loadCategories();
+                } else {
+                    Toast.error('Error', data.error?.message || 'Error al guardar');
+                }
+            } catch (e) {
+                Toast.error('Error', 'Error de conexión');
+            }
+        }
+        
+        async function deleteCategory(id) {
+            if (!confirm('¿Eliminar esta categoría?')) return;
+            try {
+                const res = await fetch(`${API_URL}/categories/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (res.ok) {
+                    loadCategories();
+                } else {
+                    alert('Error al eliminar');
+                }
+            } catch (e) {
+                alert('Error de conexión');
+            }
+        }
+        
+        function openAttributeModal() {
+            document.getElementById('attribute-modal').classList.add('active');
+            document.getElementById('attribute-nombre').value = '';
+            document.getElementById('attribute-tipo').value = 'seleccion';
+            document.getElementById('attribute-valores').value = '';
+        }
+        
+        function closeAttributeModal() {
+            document.getElementById('attribute-modal').classList.remove('active');
+        }
+        
+        async function saveAttribute() {
+            if (!currentCategoryId) {
+                alert('Guarde la categoría primero');
+                return;
+            }
+            
+            const nombre = document.getElementById('attribute-nombre').value;
+            const valores = document.getElementById('attribute-valores').value.split(',').map(v => v.trim()).filter(v => v);
+            
+            if (!nombre || valores.length === 0) {
+                alert('Nombre y valores son requeridos');
+                return;
+            }
+            
+            try {
+                const res = await fetch(`${API_URL}/categories/${currentCategoryId}/attributes`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + token,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        nombre: nombre,
+                        tipo: document.getElementById('attribute-tipo').value,
+                        valores: valores
+                    })
+                });
+                
+                if (res.ok) {
+                    closeAttributeModal();
+                    loadCategoryAttributes(currentCategoryId);
+                } else {
+                    const err = await res.json();
+                    alert(err.message || 'Error al guardar');
+                }
+            } catch (e) {
+                alert('Error de conexión');
+            }
+        }
+        
+        async function deleteAttribute(id) {
+            if (!confirm('¿Eliminar este atributo?')) return;
+            try {
+                const res = await fetch(`${API_URL}/attributes/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (res.ok && currentCategoryId) {
+                    loadCategoryAttributes(currentCategoryId);
+                }
+            } catch (e) {
+                alert('Error de conexión');
+            }
+        }
+        
+        init();
+    </script>
+    <script src="/topbar.js"></script>
+    <script src="/sidebar.js"></script>
+    <script src="/toast.js"></script>
+</body>
+</html>

@@ -282,6 +282,111 @@ func Logout(c *fiber.Ctx) error {
 	return utils.SuccessMessage(c, fiber.StatusOK, "sesión cerrada exitosamente")
 }
 
+// UpdateProfile actualiza el perfil del usuario actual
+// PUT /api/auth/profile
+func UpdateProfile(c *fiber.Ctx) error {
+	user := middleware.GetUser(c)
+	if user == nil {
+		return utils.ErrorWithCode(c, fiber.StatusUnauthorized, "UNAUTHORIZED", "no autorizado")
+	}
+
+	var input models.UpdateProfileInput
+	if err := c.BodyParser(&input); err != nil {
+		return utils.ErrorWithCode(c, fiber.StatusBadRequest, "INVALID_BODY", "formato de datos inválido")
+	}
+
+	// Actualizar campos
+	updates := make(map[string]interface{})
+
+	if input.Nombre != "" {
+		updates["nombre"] = input.Nombre
+	}
+	if input.Apellido != "" {
+		updates["apellido"] = input.Apellido
+	}
+	if input.Telefono != "" {
+		updates["telefono"] = input.Telefono
+	}
+	if input.TipoDocumento != "" {
+		updates["tipo_documento"] = input.TipoDocumento
+	}
+	if input.NumeroDocumento != "" {
+		updates["numero_documento"] = input.NumeroDocumento
+	}
+	if input.Direccion != "" {
+		updates["direccion"] = input.Direccion
+	}
+	if input.Ciudad != "" {
+		updates["ciudad"] = input.Ciudad
+	}
+	if input.Departamento != "" {
+		updates["departamento"] = input.Departamento
+	}
+	if input.Pais != "" {
+		updates["pais"] = input.Pais
+	}
+	if input.CodigoPostal != "" {
+		updates["codigo_postal"] = input.CodigoPostal
+	}
+	if input.Foto != "" {
+		updates["foto"] = input.Foto
+	}
+
+	if len(updates) > 0 {
+		if result := database.DB.Model(user).Updates(updates); result.Error != nil {
+			return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "SAVE_ERROR", "error al actualizar el perfil")
+		}
+	}
+
+	// Recargar usuario
+	database.DB.Preload("Roles").First(&user, user.ID)
+
+	return utils.SuccessData(c, fiber.StatusOK, fiber.Map{
+		"message": "perfil actualizado exitosamente",
+		"user":    user,
+	})
+}
+
+// UpdateTheme actualiza la preferencia de tema del usuario
+// PUT /api/auth/theme
+func UpdateTheme(c *fiber.Ctx) error {
+	user := middleware.GetUser(c)
+	if user == nil {
+		return utils.ErrorWithCode(c, fiber.StatusUnauthorized, "UNAUTHORIZED", "no autorizado")
+	}
+
+	var input struct {
+		Theme string `json:"theme" validate:"required"`
+	}
+	if err := c.BodyParser(&input); err != nil {
+		return utils.ErrorWithCode(c, fiber.StatusBadRequest, "INVALID_BODY", "formato de datos inválido")
+	}
+
+	if input.Theme != "light" && input.Theme != "dark" {
+		return utils.ErrorWithCode(c, fiber.StatusBadRequest, "INVALID_THEME", "tema inválido (light/dark)")
+	}
+
+	if result := database.DB.Model(user).Update("theme", input.Theme); result.Error != nil {
+		return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "SAVE_ERROR", "error al actualizar el tema")
+	}
+
+	return utils.SuccessMessage(c, fiber.StatusOK, "tema actualizado exitosamente")
+}
+
+// GetFullProfile obtiene el perfil completo del usuario actual
+// GET /api/auth/profile
+func GetFullProfile(c *fiber.Ctx) error {
+	user := middleware.GetUser(c)
+	if user == nil {
+		return utils.ErrorWithCode(c, fiber.StatusUnauthorized, "UNAUTHORIZED", "no autorizado")
+	}
+
+	// Recargar con relaciones
+	database.DB.Preload("Roles").Preload("Roles.Permisos").First(&user, user.ID)
+
+	return utils.SuccessData(c, fiber.StatusOK, user)
+}
+
 // Helpers
 func isValidEmail(email string) bool {
 	// Validación simple de email

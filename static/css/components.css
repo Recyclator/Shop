@@ -1,0 +1,299 @@
+/* ============================================================
+   COMPONENTS — Sidebar (Desktop) + Bottom Nav (Mobile)
+   ============================================================ */
+
+/* ========================================
+   DESKTOP SIDEBAR (≥ 768px)
+   ======================================== */
+.sidebar {
+    display: none;
+    position: fixed;
+    left: 0;
+    top: 0;
+    height: 100vh;
+    width: 260px;
+    background: var(--bg-elev);
+    border-right: 1px solid var(--border);
+    z-index: 40;
+    transition: width 0.25s ease;
+    overflow: hidden;
+    flex-direction: column;
+}
+
+@media (min-width: 768px) {
+    .sidebar {
+        display: flex;
+    }
+}
+
+/* Collapsed state */
+.sidebar.collapsed {
+    width: 64px;
+}
+
+/* Header */
+.sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 12px;
+    border-bottom: 1px solid var(--border);
+    min-height: 56px;
+}
+
+.sidebar-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+    font-size: 18px;
+    white-space: nowrap;
+}
+
+.sidebar-logo-icon {
+    width: 32px;
+    height: 32px;
+    background: var(--accent);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.sidebar-logo-text {
+    overflow: hidden;
+}
+
+.sidebar-collapse-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-sec);
+    cursor: pointer;
+    transition: all 0.15s;
+    flex-shrink: 0;
+}
+
+.sidebar-collapse-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text);
+}
+
+/* Navigation */
+.sidebar-nav {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+}
+
+.sidebar-section {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.sidebar-section-collapsed {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: center;
+}
+
+.sidebar-section-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--text-mut);
+    padding: 8px 12px 4px;
+    white-space: nowrap;
+}
+
+.sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    color: var(--text-sec);
+    font-size: 13px;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+
+.sidebar-item:hover {
+    background: var(--bg-hover);
+    color: var(--text);
+}
+
+.sidebar-item.active {
+    background: var(--accent-dim);
+    color: var(--accent);
+    font-weight: 500;
+}
+
+.sidebar-icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+.sidebar-item-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Collapsed item */
+.sidebar-item-collapsed {
+    padding: 10px;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+}
+
+/* Footer */
+.sidebar-footer {
+    padding: 8px;
+    border-top: 1px solid var(--border);
+}
+
+.sidebar-logout-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: none;
+    border: none;
+    color: var(--text-sec);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+
+.sidebar-logout-btn:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--danger);
+}
+
+/* ========================================
+   MOBILE BOTTOM NAV (< 768px)
+   ======================================== */
+.bottom-nav {
+    display: none;
+    position: fixed;
+    bottom: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 9999px;
+    padding: 0.5rem;
+    gap: 0.35rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+    z-index: 50;
+    max-width: calc(100vw - 2rem);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    scroll-snap-type: x proximity;
+}
+
+.bottom-nav::-webkit-scrollbar {
+    display: none;
+}
+
+@media (max-width: 767px) {
+    .bottom-nav {
+        display: flex;
+    }
+}
+
+.nav-pill-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 3.25rem;
+    height: 3rem;
+    padding: 0.4rem 0.75rem;
+    border-radius: 9999px;
+    color: var(--text-sec);
+    text-decoration: none;
+    transition: background 0.2s, color 0.2s;
+    flex-shrink: 0;
+    scroll-snap-align: center;
+    font-size: 9px;
+    gap: 2px;
+}
+
+.nav-pill-item span {
+    display: block;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.nav-pill-item:hover {
+    color: var(--text);
+}
+
+.nav-pill-item.active {
+    background: var(--accent);
+    color: #ffffff;
+}
+
+/* ========================================
+   LAYOUT ADJUSTMENTS
+   ======================================== */
+
+/* Desktop: main content offset by sidebar */
+@media (min-width: 768px) {
+    .main-wrapper {
+        margin-left: 260px;
+        transition: margin-left 0.25s ease;
+    }
+
+    .sidebar.collapsed ~ .main-wrapper {
+        margin-left: 64px;
+    }
+
+    /* Hide topbar search on desktop since sidebar has it */
+    .topbar .search {
+        max-width: 500px;
+    }
+}
+
+/* Mobile: full width, padding bottom for bottom nav */
+@media (max-width: 767px) {
+    .main-wrapper {
+        margin-left: 0;
+        padding-bottom: 5rem;
+    }
+
+    .topbar {
+        padding: 0 12px;
+    }
+
+    .topbar .search {
+        display: none;
+    }
+
+    .topbar .user span {
+        display: none;
+    }
+}
+
+/* Alpine cloak */
+[x-cloak] {
+    display: none !important;
+}

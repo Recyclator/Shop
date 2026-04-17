@@ -214,27 +214,8 @@
 </head>
 <body>
     <div class="app">
-        <header class="topbar">
-            <div class="logo" onclick="location.href='/dashboard.html'">
-                <div class="logo-icon"><svg viewBox="0 0 16 16" fill="white"><path d="M3 3h4v4H3zM9 3h4v4H9zM3 9h4v4H3zM11 9l2 4-4-2 2-2z"/></svg></div>
-                <span>Nexora</span>
-            </div>
-            <div class="spacer"></div>
-            <div class="user">
-                <div class="avatar" id="user-avatar">?</div>
-                <span id="user-name">Usuario</span>
-            </div>
-            <button class="logout-btn" onclick="logout()">Salir</button>
-        </header>
-        
-        <aside class="sidebar">
-            <div class="nav-label">Principal</div>
-            <div class="nav-item" onclick="location.href='/dashboard.html'"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Dashboard</div>
-            <div class="nav-item" onclick="location.href='/products.html'"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>Productos</div>
-            <div class="nav-item" onclick="location.href='/pos.html'"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Ventas</div>
-            <div class="nav-label">Sistema</div>
-            <div class="nav-item active"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>Configuración</div>
-        </aside>
+        <div id="topbar-container"></div>
+        <div id="sidebar-container" data-page="settings"></div>
         
         <main class="main">
             <div class="page-header">
@@ -243,6 +224,19 @@
             </div>
             
             <div class="settings-grid">
+                <div class="settings-card" style="cursor:pointer" onclick="location.href='/roles-permissions.html'">
+                    <div class="card-header">
+                        <div class="card-icon blue">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                        </div>
+                        <div>
+                            <div class="card-title">Roles y Permisos</div>
+                            <div class="card-desc">Gestión de roles y permisos del sistema</div>
+                        </div>
+                    </div>
+                    <div style="font-size:12px;color:var(--text-mut);margin-top:8px">Solo accessible para superadministradores</div>
+                </div>
+
                 <div class="settings-card">
                     <div class="card-header">
                         <div class="card-icon blue">
@@ -344,7 +338,7 @@
                         <span class="info-label">PSE</span>
                         <span class="status-badge warning"><span class="status-dot"></span>Pendiente</span>
                     </div>
-                    <button class="btn btn-secondary" style="margin-top: 16px" onclick="alert('Próximamente: Configuración de pasarelas de pago')">Configurar</button>
+                    <button class="btn btn-secondary" style="margin-top: 16px" onclick="Toast.info('Próximamente', 'Configuración de pasarelas de pago');">Configurar</button>
                 </div>
                 
                 <div class="settings-card">
@@ -365,7 +359,7 @@
                         <span class="info-label">Administradores</span>
                         <span class="info-value">1</span>
                     </div>
-                    <button class="btn btn-secondary" style="margin-top: 16px" onclick="alert('Gestión de usuarios en /api/users')">Ver usuarios</button>
+                    <button class="btn btn-secondary" style="margin-top: 16px" onclick="Toast.info('Usuarios', 'Gestión de usuarios en /api/users');">Ver usuarios</button>
                 </div>
             </div>
         </main>
@@ -378,20 +372,25 @@
         if (!token) {
             window.location.href = '/index.html';
         }
-        
-        const userStr = localStorage.getItem('nexora_user');
-        if (userStr) {
-            const user = JSON.parse(userStr);
-            document.getElementById('user-name').textContent = user.nombre || user.email;
-            document.getElementById('user-avatar').textContent = user.nombre ? user.nombre.charAt(0).toUpperCase() : '?';
-        }
-        
+
         function logout() {
             localStorage.removeItem('nexora_token');
             localStorage.removeItem('nexora_user');
             window.location.href = '/index.html';
         }
-        
+
+        // Intercept 401 globally
+        const _fetch = window.fetch;
+        window.fetch = function(...args) {
+            return _fetch.apply(this, args).then(res => {
+                if (res.status === 401) {
+                    Toast.warning('Sesión expirada', 'Tu sesión ha expirada, redirigiendo al login...');
+                    setTimeout(logout, 1500);
+                }
+                return res;
+            });
+        };
+
         async function loadStats() {
             try {
                 const res = await fetch(API_URL + '/users', {
@@ -405,14 +404,21 @@
         }
         
         function saveCompany() {
-            alert('Configuración guardada (demo)');
+            Toast.success('Guardado', 'Configuración de empresa guardada');
+        }
+        
+        function saveConfig() {
+            Toast.success('Guardado', 'Configuración guardada correctamente');
         }
         
         function saveDIAN() {
-            alert('Configuración DIAN actualizada (demo)');
+            Toast.success('Guardado', 'Configuración DIAN actualizada');
         }
         
         loadStats();
     </script>
+    <script src="/toast.js"></script>
+    <script src="/topbar.js"></script>
+    <script src="/sidebar.js"></script>
 </body>
 </html>

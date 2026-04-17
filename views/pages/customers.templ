@@ -1,0 +1,201 @@
+package pages
+
+
+// CustomersData holds data for the customers page
+type CustomersData struct {
+	InitialPage  int
+	InitialLimit int
+}
+
+// CustomersPage renders the customers management page
+templ CustomersPage(data CustomersData) {
+	<div class="page-header">
+		<div>
+			<h1 class="page-title">Clientes</h1>
+			<p class="page-sub" id="total-customers">Cargando...</p>
+		</div>
+		<button class="btn btn-primary" onclick="openModal()">
+			<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+			Nuevo Cliente
+		</button>
+	</div>
+
+	<div class="toolbar">
+		<input type="text" placeholder="Buscar por nombre, cédula, email..." id="search-filter">
+		<button class="btn btn-secondary" onclick="loadCustomers()">Buscar</button>
+	</div>
+
+	<div class="card">
+		<div class="card-body p-0">
+			<table>
+				<thead>
+					<tr>
+						<th>Cédula</th>
+						<th>Nombre</th>
+						<th>Email</th>
+						<th>Teléfono</th>
+						<th>Fecha Registro</th>
+						<th>Acciones</th>
+					</tr>
+				</thead>
+				<tbody id="customers-table">
+					<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-mut)">Cargando clientes...</td></tr>
+				</tbody>
+			</table>
+		</div>
+	</div>
+
+	<div class="pagination" id="pagination"></div>
+
+	<!-- Modal -->
+	<div class="modal-overlay" id="customer-modal">
+		<div class="modal">
+			<div class="modal-header">
+				<div class="modal-title" id="modal-title">Nuevo Cliente</div>
+				<button class="modal-close" onclick="closeModal()">&times;</button>
+			</div>
+			<div class="modal-body">
+				<form id="customer-form">
+					<input type="hidden" id="customer-id">
+					<div class="form-group">
+						<label class="form-label">Cédula *</label>
+						<input type="text" class="form-input" id="cedula" required>
+					</div>
+					<div class="form-group">
+						<label class="form-label">Nombre Completo *</label>
+						<input type="text" class="form-input" id="nombre" required>
+					</div>
+					<div class="form-group">
+						<label class="form-label">Email *</label>
+						<input type="email" class="form-input" id="email" required>
+					</div>
+					<div class="form-group">
+						<label class="form-label">Teléfono *</label>
+						<input type="text" class="form-input" id="telefono" required>
+					</div>
+				</form>
+			</div>
+			<div class="modal-footer">
+				<button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+				<button class="btn btn-primary" onclick="saveCustomer()">Guardar</button>
+			</div>
+		</div>
+	</div>
+
+	<script src="/public/toast.js"></script>
+	<script>
+		let currentPage = 1, currentSearch = '';
+
+		async function loadCustomers(page = 1) {
+			currentPage = page;
+			try {
+				const url = `${API_URL}/customers?page=${page}&limit=20${currentSearch ? '&search=' + encodeURIComponent(currentSearch) : ''}`;
+				const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+				if (res.ok) {
+					const data = await res.json();
+					const customers = data.data || [];
+					const meta = data.meta || {};
+					renderCustomers(customers);
+					renderPagination(meta);
+					document.getElementById('total-customers').textContent = `${meta.total || 0} clientes registrados`;
+				}
+			} catch (e) { Toast.error('Error', 'Error de conexión'); }
+		}
+
+		function renderCustomers(customers) {
+			const tbody = document.getElementById('customers-table');
+			if (customers.length === 0) {
+				tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-mut)">No hay clientes</td></tr>';
+				return;
+			}
+			tbody.innerHTML = customers.map(c => `
+				<tr>
+					<td class="mono">${c.cedula}</td>
+					<td style="font-weight:500;color:var(--text)">${c.nombre}</td>
+					<td>${c.email}</td>
+					<td>${c.telefono}</td>
+					<td>${new Date(c.created_at).toLocaleDateString('es-CO')}</td>
+					<td>
+						<div class="actions">
+							<button class="action-btn" onclick="editCustomer(${c.id})" title="Editar"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+							<button class="action-btn" onclick="deleteCustomer(${c.id})" title="Eliminar"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline x1="3" y1="6" x2="21" y2="6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+						</div>
+					</td>
+				</tr>
+			`).join('');
+		}
+
+		function renderPagination(meta) {
+			const totalPages = meta.total_pages || 1;
+			if (totalPages <= 1) { document.getElementById('pagination').innerHTML = ''; return; }
+			let html = `<div class="pagination-info">Mostrando ${((currentPage - 1) * 20) + 1}-${Math.min(currentPage * 20, meta.total)} de ${meta.total}</div>`;
+			html += '<div class="pagination-buttons">';
+			if (currentPage > 1) html += `<button class="btn btn-sm btn-secondary" onclick="loadCustomers(${currentPage - 1})">Anterior</button>`;
+			if (currentPage < totalPages) html += `<button class="btn btn-sm btn-secondary" onclick="loadCustomers(${currentPage + 1})">Siguiente</button>`;
+			html += '</div>';
+			document.getElementById('pagination').innerHTML = html;
+		}
+
+		function openModal() {
+			document.getElementById('modal-title').textContent = 'Nuevo Cliente';
+			document.getElementById('customer-form').reset();
+			document.getElementById('customer-id').value = '';
+			document.getElementById('customer-modal').classList.add('active');
+		}
+
+		function closeModal() { document.getElementById('customer-modal').classList.remove('active'); }
+
+		async function editCustomer(id) {
+			try {
+				const res = await fetch(`${API_URL}/customers/${id}`, { headers: { 'Authorization': 'Bearer ' + token } });
+				if (res.ok) {
+					const data = await res.json();
+					const c = data.data;
+					document.getElementById('modal-title').textContent = 'Editar Cliente';
+					document.getElementById('customer-id').value = c.id;
+					document.getElementById('cedula').value = c.cedula;
+					document.getElementById('nombre').value = c.nombre;
+					document.getElementById('email').value = c.email;
+					document.getElementById('telefono').value = c.telefono;
+					document.getElementById('customer-modal').classList.add('active');
+				}
+			} catch (e) { Toast.error('Error', 'No se pudo cargar el cliente'); }
+		}
+
+		async function saveCustomer() {
+			const id = document.getElementById('customer-id').value;
+			const body = {
+				cedula: document.getElementById('cedula').value.trim(),
+				nombre: document.getElementById('nombre').value.trim(),
+				email: document.getElementById('email').value.trim(),
+				telefono: document.getElementById('telefono').value.trim()
+			};
+			if (!body.cedula || !body.nombre || !body.email || !body.telefono) {
+				Toast.warning('Campos requeridos', 'Todos los campos son obligatorios'); return;
+			}
+			try {
+				const res = await fetch(id ? `${API_URL}/customers/${id}` : `${API_URL}/customers`, {
+					method: id ? 'PUT' : 'POST',
+					headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+					body: JSON.stringify(body)
+				});
+				const data = await res.json();
+				if (res.ok) { Toast.success('Éxito', id ? 'Cliente actualizado' : 'Cliente creado'); closeModal(); loadCustomers(currentPage); }
+				else { Toast.error('Error', data.error?.message || 'Error al guardar'); }
+			} catch (e) { Toast.error('Error', 'Error de conexión'); }
+		}
+
+		async function deleteCustomer(id) {
+			if (!confirm('¿Estás seguro de eliminar este cliente?')) return;
+			try {
+				const res = await fetch(`${API_URL}/customers/${id}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } });
+				const data = await res.json();
+				if (res.ok) { Toast.success('Éxito', 'Cliente eliminado'); loadCustomers(currentPage); }
+				else { Toast.error('Error', data.error?.message || 'Error al eliminar'); }
+			} catch (e) { Toast.error('Error', 'Error de conexión'); }
+		}
+
+		document.getElementById('search-filter').addEventListener('keypress', (e) => { if (e.key === 'Enter') { currentSearch = e.target.value; loadCustomers(1); } });
+		loadCustomers(1);
+	</script>
+}

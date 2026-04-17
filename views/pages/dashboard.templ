@@ -1,0 +1,138 @@
+package pages
+
+// DashboardData holds data for the dashboard page
+type DashboardData struct {
+	Stats    []StatCard
+	Orders   []OrderRow
+	Activity []ActivityItem
+}
+
+// StatCard represents a dashboard stat
+type StatCard struct {
+	Label string
+	Value string
+	Icon  string
+	Trend string
+	Up    bool
+}
+
+// OrderRow represents an order in the table
+type OrderRow struct {
+	ID     string
+	Client string
+	Amount string
+	Status string
+	Date   string
+	Badge  string
+}
+
+// ActivityItem represents an activity log entry
+type ActivityItem struct {
+	Color string
+	Text  string
+	Time  string
+}
+
+// DashboardPage renders the dashboard content (wrapped by Base layout)
+templ DashboardPage(data DashboardData) {
+	<div class="page-header">
+		<div>
+			<h1 class="page-title">Dashboard</h1>
+			<p class="page-sub" id="current-date">Cargando...</p>
+		</div>
+	</div>
+
+	<div class="stats">
+		for _, stat := range data.Stats {
+			<div class="stat">
+				<div class="stat-header">
+					<div class={ "stat-icon", "stat-icon-" + stat.Icon }>
+						<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+							@iconSVG(stat.Icon)
+						</svg>
+					</div>
+					if stat.Trend != "" {
+						if stat.Up {
+							<span class="stat-trend trend-up">{ stat.Trend }</span>
+						} else {
+							<span class="stat-trend trend-down">{ stat.Trend }</span>
+						}
+					}
+				</div>
+				<div class="stat-value">{ stat.Value }</div>
+				<div class="stat-label">{ stat.Label }</div>
+			</div>
+		}
+	</div>
+
+	<div class="sections">
+		<div class="card">
+			<div class="card-header">
+				<div class="card-title">Pedidos recientes</div>
+			</div>
+			<div class="card-body p-0">
+				<table>
+					<thead>
+						<tr>
+							<th>Pedido</th>
+							<th>Cliente</th>
+							<th>Monto</th>
+							<th>Estado</th>
+							<th>Fecha</th>
+						</tr>
+					</thead>
+					<tbody>
+						for _, order := range data.Orders {
+							<tr>
+								<td class="mono">{ order.ID }</td>
+								<td>{ order.Client }</td>
+								<td class="mono">{ order.Amount }</td>
+								<td>
+									<span class={ "badge", "badge-" + order.Badge }>●</span>
+									{ order.Status }
+								</td>
+								<td>{ order.Date }</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+		</div>
+
+		<div class="card">
+			<div class="card-header">
+				<div class="card-title">Actividad reciente</div>
+			</div>
+			<div class="card-body">
+				for _, act := range data.Activity {
+					<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+						<div style={ "width:8px;height:8px;background:" + act.Color + ";border-radius:50%;margin-top:5px" }></div>
+						<div>
+							<div style="font-size:12px">@templ.Raw(act.Text)</div>
+							<div style="font-size:10px;color:var(--text-mut)">{ act.Time }</div>
+						</div>
+					</div>
+				}
+			</div>
+		</div>
+	</div>
+
+	<script>
+		const now = new Date();
+		const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+		const dateEl = document.getElementById('current-date');
+		if (dateEl) dateEl.textContent = now.toLocaleDateString('es-CO', options);
+	</script>
+}
+
+func iconSVG(name string) templ.Component {
+	icons := map[string]string{
+		"blue":   `<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>`,
+		"green":  `<circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>`,
+		"yellow": `<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>`,
+	}
+	if svg, ok := icons[name]; ok {
+		return templ.Raw(svg)
+	}
+	return templ.Raw(icons["blue"])
+}

@@ -211,8 +211,9 @@ func QuickPOSSale(c *fiber.Ctx) error {
 
 	var input struct {
 		Items []struct {
-			ProductoID uint `json:"producto_id"`
-			Cantidad   int  `json:"cantidad"`
+			ProductoID uint  `json:"producto_id"`
+			VariantID  *uint `json:"variant_id"`
+			Cantidad   int   `json:"cantidad"`
 		} `json:"items" validate:"required,min=1"`
 		MetodoPago string  `json:"metodo_pago"`
 		Recibido   float64 `json:"recibido"`
@@ -239,19 +240,55 @@ func QuickPOSSale(c *fiber.Ctx) error {
 			return utils.ErrorWithCode(c, fiber.StatusBadRequest, "INVALID_PRODUCT", fmt.Sprintf("producto %d no encontrado", item.ProductoID))
 		}
 
-		if product.ControlaInventario && product.Stock < item.Cantidad && !product.PermiteStockNegativo {
-			return utils.ErrorWithCode(c, fiber.StatusBadRequest, "INSUFFICIENT_STOCK", fmt.Sprintf("stock insuficiente para %s (disponible: %d)", product.Nombre, product.Stock))
+		var variant *models.ProductVariant
+		var precioUnitario float64 = product.Precio
+		var sku string = product.SKU
+		var variantInfo string
+
+		if item.VariantID != nil {
+			variant = new(models.ProductVariant)
+			if result := database.DB.Preload("Atributos").First(variant, *item.VariantID); result.Error != nil {
+				return utils.ErrorWithCode(c, fiber.StatusBadRequest, "INVALID_VARIANT", fmt.Sprintf("variante %d no encontrada", *item.VariantID))
+			}
+			if variant.ProductoID != item.ProductoID {
+				return utils.ErrorWithCode(c, fiber.StatusBadRequest, "VARIANT_MISMATCH", "la variante no pertenece al producto")
+			}
+			if variant.PrecioOverride > 0 {
+				precioUnitario = variant.PrecioOverride
+			}
+			sku = variant.SKU
+			for _, attr := range variant.Atributos {
+				if variantInfo != "" {
+					variantInfo += ", "
+				}
+				variantInfo += attr.Value
+			}
 		}
 
-		itemTotal := product.Precio * float64(item.Cantidad)
+		stockActual := product.Stock
+		if variant != nil {
+			stockActual = variant.Stock
+		}
+
+		if product.ControlaInventario && stockActual < item.Cantidad && !product.PermiteStockNegativo {
+			productoNombre := product.Nombre
+			if variant != nil {
+				productoNombre = variant.Nombre
+			}
+			return utils.ErrorWithCode(c, fiber.StatusBadRequest, "INSUFFICIENT_STOCK", fmt.Sprintf("stock insuficiente para %s (disponible: %d)", productoNombre, stockActual))
+		}
+
+		itemTotal := precioUnitario * float64(item.Cantidad)
 		itemImpuesto := itemTotal * (impuestoPorcentaje / 100)
 
 		items[i] = models.OrderItem{
 			ProductoID:     item.ProductoID,
+			VarianteID:     item.VariantID,
 			NombreProducto: product.Nombre,
-			SKU:            product.SKU,
+			SKU:            sku,
+			VarianteInfo:   variantInfo,
 			Cantidad:       item.Cantidad,
-			PrecioUnitario: product.Precio,
+			PrecioUnitario: precioUnitario,
 			Impuesto:       itemImpuesto,
 			Total:          itemTotal + itemImpuesto,
 		}
@@ -260,7 +297,17 @@ func QuickPOSSale(c *fiber.Ctx) error {
 		impuesto += itemImpuesto
 
 		if product.ControlaInventario {
-			database.DB.Model(&product).Update("stock", database.DB.Raw("stock - ?", item.Cantidad))
+			if variant != nil {
+				stockAnterior := variant.Stock
+				variant.Stock -= item.Cantidad
+				database.DB.Save(variant)
+				registrarMovimientoStock(item.ProductoID, variant.ID, currentUser.ID, models.StockVenta, -item.Cantidad, stockAnterior, variant.Stock, "Venta POS")
+			} else {
+				stockAnterior := product.Stock
+				product.Stock -= item.Cantidad
+				database.DB.Save(&product)
+				registrarMovimientoStock(item.ProductoID, 0, currentUser.ID, models.StockVenta, -item.Cantidad, stockAnterior, product.Stock, "Venta POS")
+			}
 		}
 	}
 
@@ -392,4 +439,21 @@ func CancelOrder(c *fiber.Ctx) error {
 func generateOrderNumber() string {
 	now := time.Now()
 	return fmt.Sprintf("NX-%d%02d%02d-%04d", now.Year(), now.Month(), now.Day(), now.Unix()%10000)
+}
+
+func registrarMovimientoStock(productoID uint, variantID uint, usuarioID uint, tipo string, cantidad int, stockAnterior int, stockNuevo int, motivo string) {
+	movimiento := models.StockMovement{
+		ProductoID:    productoID,
+		VariantID:     nil,
+		UsuarioID:     usuarioID,
+		Tipo:          tipo,
+		Cantidad:      cantidad,
+		StockAnterior: stockAnterior,
+		StockNuevo:    stockNuevo,
+		Motivo:        motivo,
+	}
+	if variantID > 0 {
+		movimiento.VariantID = &variantID
+	}
+	database.DB.Create(&movimiento)
 }

@@ -3,15 +3,15 @@ package database
 import (
 	"fmt"
 	"log"
-	"os"
 	"time"
 
-	"gorm.io/driver/sqlite"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
 	"github.com/nexora/backend/internal/config"
 	"github.com/nexora/backend/internal/models"
+	"github.com/nexora/backend/internal/utils"
 )
 
 var DB *gorm.DB
@@ -19,13 +19,7 @@ var DB *gorm.DB
 func Connect(cfg *config.Config) error {
 	var err error
 
-	// Usar SQLite para desarrollo local
-	dbPath := "./nexora.db"
-
-	// Eliminar db existente si hay problemas
-	if _, err := os.Stat(dbPath); err == nil {
-		log.Println("ℹ️  Usando base de datos existente")
-	}
+	dsn := cfg.GetDSN()
 
 	dbConfig := &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Info),
@@ -34,12 +28,12 @@ func Connect(cfg *config.Config) error {
 		},
 	}
 
-	DB, err = gorm.Open(sqlite.Open(dbPath), dbConfig)
+	DB, err = gorm.Open(postgres.Open(dsn), dbConfig)
 	if err != nil {
-		return fmt.Errorf("error al conectar a SQLite: %w", err)
+		return fmt.Errorf("error al conectar a PostgreSQL: %w", err)
 	}
 
-	log.Println("✅ Conexión a SQLite establecida")
+	log.Println("✅ Conexión a PostgreSQL establecida")
 	return nil
 }
 
@@ -51,14 +45,20 @@ func Migrate() error {
 		&models.Role{},
 		&models.RolePermission{},
 		&models.User{},
+		&models.Customer{},
 		&models.Category{},
 		&models.Product{},
 		&models.ProductImage{},
 		&models.ProductVariant{},
+		&models.VariantAttributeValue{},
+		&models.ProductAttribute{},
+		&models.StockMovement{},
 		&models.Tag{},
 		&models.Order{},
 		&models.OrderItem{},
 		&models.Invoice{},
+		&models.Layaway{},
+		&models.Payment{},
 	)
 
 	if err != nil {
@@ -91,6 +91,39 @@ func SeedData() error {
 
 	if err := models.AssignDefaultPermissions(DB); err != nil {
 		return fmt.Errorf("error al asignar permisos: %w", err)
+	}
+
+	// Crear usuario superadmin de prueba
+	var userCount int64
+	DB.Model(&models.User{}).Count(&userCount)
+	if userCount == 0 {
+		hashedPassword, err := utils.HashPassword("superadmin123")
+		if err != nil {
+			return fmt.Errorf("error al hash contraseña: %w", err)
+		}
+
+		var superadminRole models.Role
+		if err := DB.Where("nombre = ?", "superadmin").First(&superadminRole).Error; err != nil {
+			return fmt.Errorf("error al buscar rol superadmin: %w", err)
+		}
+
+		superadmin := models.User{
+			Email:           "superadmin@nexora.com",
+			Password:        hashedPassword,
+			Nombre:          "Super",
+			Apellido:        "Admin",
+			Telefono:        "3001234567",
+			TipoDocumento:   "CC",
+			NumeroDocumento: "1234567890",
+			Activo:          true,
+			Roles:           []models.Role{superadminRole},
+		}
+
+		if err := DB.Create(&superadmin).Error; err != nil {
+			return fmt.Errorf("error al crear usuario superadmin: %w", err)
+		}
+
+		log.Println("✅ Usuario superadmin creado: superadmin@nexora.com / superadmin123")
 	}
 
 	log.Println("✅ Datos iniciales creados")

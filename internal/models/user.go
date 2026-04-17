@@ -22,6 +22,7 @@ type User struct {
 	CodigoPostal        string         `gorm:"size:10" json:"codigo_postal"`
 	Foto                string         `gorm:"size:500" json:"foto"`
 	Activo              bool           `gorm:"default:true" json:"activo"`
+	Theme               string         `gorm:"size:10;default:dark" json:"theme"` // "light" or "dark"
 	EmailVerificado     bool           `gorm:"default:false" json:"email_verificado"`
 	UltimoLogin         *time.Time     `json:"ultimo_login"`
 	PasswordChangedAt   *time.Time     `json:"password_changed_at"`
@@ -35,8 +36,6 @@ type User struct {
 
 	// Relaciones
 	Roles []Role `gorm:"many2many:user_roles" json:"roles,omitempty"`
-
-	// Métodos
 }
 
 // TableName returns the table name
@@ -72,14 +71,32 @@ type ChangePasswordInput struct {
 }
 
 type UpdateUserInput struct {
-	Nombre       string `json:"nombre"`
-	Apellido     string `json:"apellido"`
-	Telefono     string `json:"telefono"`
-	Direccion    string `json:"direccion"`
-	Ciudad       string `json:"ciudad"`
-	Departamento string `json:"departamento"`
-	CodigoPostal string `json:"codigo_postal"`
-	Activo       *bool  `json:"activo"`
+	Nombre          string `json:"nombre"`
+	Apellido        string `json:"apellido"`
+	Telefono        string `json:"telefono"`
+	TipoDocumento   string `json:"tipo_documento"`
+	NumeroDocumento string `json:"numero_documento"`
+	Direccion       string `json:"direccion"`
+	Ciudad          string `json:"ciudad"`
+	Departamento    string `json:"departamento"`
+	Pais            string `json:"pais"`
+	CodigoPostal    string `json:"codigo_postal"`
+	Foto            string `json:"foto"`
+	Activo          *bool  `json:"activo"`
+}
+
+type UpdateProfileInput struct {
+	Nombre          string `json:"nombre"`
+	Apellido        string `json:"apellido"`
+	Telefono        string `json:"telefono"`
+	TipoDocumento   string `json:"tipo_documento"`
+	NumeroDocumento string `json:"numero_documento"`
+	Direccion       string `json:"direccion"`
+	Ciudad          string `json:"ciudad"`
+	Departamento    string `json:"departamento"`
+	Pais            string `json:"pais"`
+	CodigoPostal    string `json:"codigo_postal"`
+	Foto            string `json:"foto"`
 }
 
 // UserResponse define la respuesta pública del usuario
@@ -92,6 +109,7 @@ type UserResponse struct {
 	TipoDocumento   string    `json:"tipo_documento"`
 	NumeroDocumento string    `json:"numero_documento"`
 	Activo          bool      `json:"activo"`
+	Theme           string    `json:"theme"`
 	Roles           []Role    `json:"roles"`
 	CreatedAt       time.Time `json:"created_at"`
 }
@@ -107,6 +125,7 @@ func (u *User) ToResponse() UserResponse {
 		TipoDocumento:   u.TipoDocumento,
 		NumeroDocumento: u.NumeroDocumento,
 		Activo:          u.Activo,
+		Theme:           u.Theme,
 		Roles:           u.Roles,
 		CreatedAt:       u.CreatedAt,
 	}
