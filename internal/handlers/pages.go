@@ -10,6 +10,12 @@ import (
 
 // ===================== Page Handlers =====================
 
+// RenderAuth handles GET / (login/register page)
+func RenderAuth(c *fiber.Ctx) error {
+	h := adaptor.HTTPHandler(templ.Handler(pages.AuthPage()))
+	return h(c)
+}
+
 // RenderDashboard handles GET /dashboard
 func RenderDashboard(c *fiber.Ctx) error {
 	println("DEBUG: RenderDashboard called")

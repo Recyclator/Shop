@@ -123,26 +123,27 @@ type CreateProductInput struct {
 }
 
 type UpdateProductInput struct {
-	Nombre               string  `json:"nombre"`
-	Descripcion          string  `json:"descripcion"`
+	SKU                   string  `json:"sku"`
+	Nombre                string  `json:"nombre"`
+	Descripcion           string  `json:"descripcion"`
 	DescripcionCorta     string  `json:"descripcion_corta"`
-	Precio               float64 `json:"precio"`
+	Precio                float64 `json:"precio"`
 	PrecioAnterior       float64 `json:"precio_anterior"`
-	Costo                float64 `json:"costo"`
-	Stock                *int    `json:"stock"`
-	StockMinimo          int     `json:"stock_minimo"`
-	PermiteStockNegativo bool    `json:"permite_stock_negativo"`
-	ControlaInventario   bool    `json:"controla_inventario"`
-	CategoriaID          *uint   `json:"categoria_id"`
-	Tags                 []uint  `json:"tags"`
-	ImagenPrincipal      string  `json:"imagen_principal"`
-	Estado               string  `json:"estado"`
-	Destacado            *bool   `json:"destacado"`
-	Nuevo                *bool   `json:"nuevo"`
-	TiempoEntregaDias    int     `json:"tiempo_entrega_dias"`
-	MetaTitulo           string  `json:"meta_titulo"`
-	MetaDescripcion      string  `json:"meta_descripcion"`
-	PalabrasClave        string  `json:"palabras_clave"`
+	Costo                 float64 `json:"costo"`
+	Stock                 *int    `json:"stock"`
+	StockMinimo           int     `json:"stock_minimo"`
+	PermiteStockNegativo  bool    `json:"permite_stock_negativo"`
+	ControlaInventario    bool    `json:"controla_inventario"`
+	CategoriaID           *uint   `json:"categoria_id"`
+	Tags                  []uint  `json:"tags"`
+	ImagenPrincipal       string  `json:"imagen_principal"`
+	Estado                string  `json:"estado"`
+	Destacado             *bool   `json:"destacado"`
+	Nuevo                 *bool   `json:"nuevo"`
+	TiempoEntregaDias     int     `json:"tiempo_entrega_dias"`
+	MetaTitulo            string  `json:"meta_titulo"`
+	MetaDescripcion       string  `json:"meta_descripcion"`
+	PalabrasClave         string  `json:"palabras_clave"`
 }
 
 // ProductResponse representa la respuesta de un producto

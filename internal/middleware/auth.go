@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"strings"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/nexora/backend/internal/database"
@@ -34,6 +33,11 @@ func AuthMiddleware() fiber.Handler {
 		claims, err := utils.ValidateJWT(tokenString)
 		if err != nil {
 			return utils.ErrorWithCode(c, fiber.StatusUnauthorized, "TOKEN_INVALID", "token inválido o expirado")
+		}
+
+		// Verificar si el token ha sido revocado
+		if utils.IsRevoked(claims.RegisteredClaims.ID) {
+			return utils.ErrorWithCode(c, fiber.StatusUnauthorized, "TOKEN_REVOKED", "token revocado")
 		}
 
 		// Cargar usuario desde la base de datos
@@ -99,30 +103,4 @@ func OptionalAuthMiddleware() fiber.Handler {
 	}
 }
 
-// RateLimiterMiddleware implementa rate limiting básico
-func RateLimiterMiddleware(maxRequests int, window time.Duration) fiber.Handler {
-	requests := make(map[string][]time.Time)
 
-	return func(c *fiber.Ctx) error {
-		ip := c.IP()
-		now := time.Now()
-
-		// Limpiar solicitudes antiguas
-		validRequests := requests[ip][:0]
-		for _, t := range requests[ip] {
-			if now.Sub(t) < window {
-				validRequests = append(validRequests, t)
-			}
-		}
-		requests[ip] = validRequests
-
-		// Verificar límite
-		if len(requests[ip]) >= maxRequests {
-			return utils.ErrorWithCode(c, fiber.StatusTooManyRequests, "RATE_LIMIT", "demasiadas solicitudes, intenta más tarde")
-		}
-
-		// Agregar solicitud actual
-		requests[ip] = append(requests[ip], now)
-		return c.Next()
-	}
-}

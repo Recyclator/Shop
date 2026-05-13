@@ -21,7 +21,7 @@ templ CustomersPage(data CustomersData) {
 	</div>
 
 	<div class="toolbar">
-		<input type="text" placeholder="Buscar por nombre, cédula, email..." id="search-filter">
+		<input type="text" class="form-input-tw" placeholder="Buscar por nombre, cédula, email..." id="search-filter">
 		<button class="btn btn-secondary" onclick="loadCustomers()">Buscar</button>
 	</div>
 
@@ -82,7 +82,7 @@ templ CustomersPage(data CustomersData) {
 		</div>
 	</div>
 
-	<script src="/public/toast.js"></script>
+	<script src="/static/js/toast.js"></script>
 	<script>
 		let currentPage = 1, currentSearch = '';
 

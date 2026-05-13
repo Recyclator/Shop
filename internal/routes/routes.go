@@ -1,6 +1,8 @@
 package routes
 
 import (
+	"time"
+
 	"github.com/gofiber/fiber/v2"
 
 	"github.com/nexora/backend/internal/handlers"
@@ -13,9 +15,9 @@ func Setup(app *fiber.App) {
 
 	// ========== AUTH ==========
 	auth := api.Group("/auth")
-	auth.Post("/register", handlers.Register)
-	auth.Post("/login", handlers.Login)
-	auth.Post("/refresh", handlers.RefreshToken)
+	auth.Post("/register", middleware.RateLimiterMiddleware(5, time.Hour), handlers.Register)
+	auth.Post("/login", middleware.RateLimiterMiddleware(10, time.Minute), handlers.Login)
+	auth.Post("/refresh", middleware.RateLimiterMiddleware(20, time.Minute), handlers.RefreshToken)
 	auth.Post("/logout", handlers.Logout)
 	auth.Post("/change-password", middleware.AuthMiddleware(), handlers.ChangePassword)
 	auth.Get("/me", middleware.AuthMiddleware(), handlers.GetCurrentUser)
@@ -25,103 +27,103 @@ func Setup(app *fiber.App) {
 
 	// ========== USERS ==========
 	users := api.Group("/users", middleware.AuthMiddleware())
-	users.Get("/", handlers.GetUsers)
-	users.Get("/search", handlers.SearchUsers)
-	users.Post("/", handlers.CreateUser)
-	users.Get("/:id", handlers.GetUserByID)
-	users.Put("/:id", handlers.UpdateUser)
-	users.Delete("/:id", handlers.DeleteUser)
-	users.Post("/:id/roles", handlers.AssignRoles)
+	users.Get("/", middleware.RequirePermissionAny("users.read", "users.list"), handlers.GetUsers)
+	users.Get("/search", middleware.RequirePermissionAny("users.read", "users.search"), handlers.SearchUsers)
+	users.Post("/", middleware.RequirePermissionAny("users.create"), handlers.CreateUser)
+	users.Get("/:id", middleware.RequirePermissionAny("users.read"), handlers.GetUserByID)
+	users.Put("/:id", middleware.RequirePermissionAny("users.update"), handlers.UpdateUser)
+	users.Delete("/:id", middleware.RequirePermissionAny("users.delete"), handlers.DeleteUser)
+	users.Post("/:id/roles", middleware.RequirePermissionAny("roles.assign"), handlers.AssignRoles)
 
 	// ========== PRODUCTS ==========
 	products := api.Group("/products", middleware.AuthMiddleware())
-	products.Get("/", handlers.GetProducts)
-	products.Get("/featured", handlers.GetFeaturedProducts)
-	products.Get("/search", handlers.SearchProducts)
-	products.Get("/category/:id", handlers.GetProductsByCategory)
-	products.Get("/sku/:sku", handlers.GetProductBySKU)
-	products.Get("/barcode/:code", middleware.AuthMiddleware(), handlers.GetProductByBarcode)
-	products.Post("/", handlers.CreateProduct)
-	products.Get("/:id", handlers.GetProductByID)
-	products.Put("/:id", handlers.UpdateProduct)
-	products.Delete("/:id", handlers.DeleteProduct)
-	products.Post("/:id/qr", handlers.GenerateProductQR)
-	products.Post("/:id/stock/adjust", handlers.AdjustProductStock)
+	products.Get("/", middleware.RequirePermissionAny("products.read"), handlers.GetProducts)
+	products.Get("/featured", handlers.GetFeaturedProducts) // público
+	products.Get("/search", handlers.SearchProducts) // público
+	products.Get("/category/:id", handlers.GetProductsByCategory) // público
+	products.Get("/sku/:sku", handlers.GetProductBySKU) // público
+	products.Get("/barcode/:code", middleware.AuthMiddleware(), middleware.RequirePermissionAny("products.read"), handlers.GetProductByBarcode)
+	products.Post("/", middleware.RequirePermissionAny("products.create"), handlers.CreateProduct)
+	products.Get("/:id", handlers.GetProductByID) // público
+	products.Put("/:id", middleware.RequirePermissionAny("products.update"), handlers.UpdateProduct)
+	products.Delete("/:id", middleware.RequirePermissionAny("products.delete"), handlers.DeleteProduct)
+	products.Post("/:id/qr", middleware.RequirePermissionAny("products.read"), handlers.GenerateProductQR)
+	products.Post("/:id/stock/adjust", middleware.RequirePermissionAny("products.update"), handlers.AdjustProductStock)
 
 	// ========== PRODUCT VARIANTS ==========
-	products.Get("/:id/variants", handlers.GetVariantsByProduct)
-	products.Post("/:id/variants", handlers.CreateVariant)
-	products.Put("/:id/variants/:var_id", handlers.UpdateVariant)
-	products.Delete("/:id/variants/:var_id", handlers.DeleteVariant)
+	products.Get("/:id/variants", middleware.RequirePermissionAny("products.read"), handlers.GetVariantsByProduct)
+	products.Post("/:id/variants", middleware.RequirePermissionAny("products.create"), handlers.CreateVariant)
+	products.Put("/:id/variants/:var_id", middleware.RequirePermissionAny("products.update"), handlers.UpdateVariant)
+	products.Delete("/:id/variants/:var_id", middleware.RequirePermissionAny("products.delete"), handlers.DeleteVariant)
 
 	// ========== CATEGORIES ==========
 	categories := api.Group("/categories")
-	categories.Get("/", handlers.GetCategories)
-	categories.Get("/:id", handlers.GetCategoryByID)
-	categories.Post("/", middleware.AuthMiddleware(), handlers.CreateCategory)
-	categories.Put("/:id", middleware.AuthMiddleware(), handlers.UpdateCategory)
-	categories.Delete("/:id", middleware.AuthMiddleware(), handlers.DeleteCategory)
+	categories.Get("/", handlers.GetCategories) // público
+	categories.Get("/:id", handlers.GetCategoryByID) // público
+	categories.Post("/", middleware.AuthMiddleware(), middleware.RequirePermissionAny("categories.create"), handlers.CreateCategory)
+	categories.Put("/:id", middleware.AuthMiddleware(), middleware.RequirePermissionAny("categories.update"), handlers.UpdateCategory)
+	categories.Delete("/:id", middleware.AuthMiddleware(), middleware.RequirePermissionAny("categories.delete"), handlers.DeleteCategory)
 
 	// ========== ATTRIBUTES ==========
 	attributes := api.Group("/attributes")
-	attributes.Get("/global", handlers.GetGlobalAttributes)
-	attributes.Get("/category/:id", handlers.GetAttributesByCategory)
-	attributes.Post("/category/:id", middleware.AuthMiddleware(), handlers.CreateAttribute)
-	attributes.Put("/:id", middleware.AuthMiddleware(), handlers.UpdateAttribute)
-	attributes.Delete("/:id", middleware.AuthMiddleware(), handlers.DeleteAttribute)
+	attributes.Get("/global", handlers.GetGlobalAttributes) // público
+	attributes.Get("/category/:id", handlers.GetAttributesByCategory) // público
+	attributes.Post("/category/:id", middleware.AuthMiddleware(), middleware.RequirePermissionAny("attributes.create"), handlers.CreateAttribute)
+	attributes.Put("/:id", middleware.AuthMiddleware(), middleware.RequirePermissionAny("attributes.update"), handlers.UpdateAttribute)
+	attributes.Delete("/:id", middleware.AuthMiddleware(), middleware.RequirePermissionAny("attributes.delete"), handlers.DeleteAttribute)
 
 	// ========== ORDERS ==========
 	orders := api.Group("/orders", middleware.AuthMiddleware())
-	orders.Get("/", handlers.GetOrders)
-	orders.Post("/", handlers.CreateOrder)
-	orders.Get("/:id", handlers.GetOrderByID)
-	orders.Put("/:id", handlers.UpdateOrder)
-	orders.Post("/:id/cancel", handlers.CancelOrder)
-	orders.Post("/pos", handlers.QuickPOSSale)
+	orders.Get("/", middleware.RequirePermissionAny("orders.read"), handlers.GetOrders)
+	orders.Post("/", middleware.RequirePermissionAny("orders.create"), handlers.CreateOrder)
+	orders.Get("/:id", middleware.RequirePermissionAny("orders.read"), handlers.GetOrderByID)
+	orders.Put("/:id", middleware.RequirePermissionAny("orders.update"), handlers.UpdateOrder)
+	orders.Post("/:id/cancel", middleware.RequirePermissionAny("orders.cancel"), handlers.CancelOrder)
+	orders.Post("/pos", middleware.RequirePermissionAny("orders.create"), handlers.QuickPOSSale)
 
 	// ========== POS ==========
-	pos := api.Group("/pos", middleware.AuthMiddleware())
+	pos := api.Group("/pos", middleware.AuthMiddleware(), middleware.RequirePermissionAny("pos.use"))
 	pos.Get("/search", handlers.POSSearch)
 	pos.Get("/products", handlers.POSSearchSimple)
 
 	// ========== CUSTOMERS ==========
 	customers := api.Group("/customers", middleware.AuthMiddleware())
-	customers.Get("/", handlers.GetCustomers)
-	customers.Get("/cedula/:cedula", handlers.GetCustomerByCedula)
-	customers.Post("/", handlers.CreateCustomer)
-	customers.Get("/:id", handlers.GetCustomerByID)
-	customers.Put("/:id", handlers.UpdateCustomer)
-	customers.Delete("/:id", handlers.DeleteCustomer)
+	customers.Get("/", middleware.RequirePermissionAny("customers.read"), handlers.GetCustomers)
+	customers.Get("/cedula/:cedula", middleware.RequirePermissionAny("customers.read"), handlers.GetCustomerByCedula)
+	customers.Post("/", middleware.RequirePermissionAny("customers.create"), handlers.CreateCustomer)
+	customers.Get("/:id", middleware.RequirePermissionAny("customers.read"), handlers.GetCustomerByID)
+	customers.Put("/:id", middleware.RequirePermissionAny("customers.update"), handlers.UpdateCustomer)
+	customers.Delete("/:id", middleware.RequirePermissionAny("customers.delete"), handlers.DeleteCustomer)
 
 	// ========== LAYAWAYS (SEPARADOS) ==========
 	layaways := api.Group("/layaways", middleware.AuthMiddleware())
-	layaways.Get("/", handlers.GetLayaways)
-	layaways.Post("/", handlers.CreateLayaway)
-	layaways.Get("/:id", handlers.GetLayawayByID)
-	layaways.Put("/:id", handlers.UpdateLayawayStatus)
-	layaways.Post("/:id/cancel", handlers.CancelLayaway)
-	layaways.Post("/:id/payments", handlers.AddPayment)
-	layaways.Get("/:id/payments", handlers.GetLayawayPayments)
-	layaways.Post("/check-expired", handlers.ExpiredLayaways)
-	layaways.Delete("/:id", handlers.DeleteLayaway)
+	layaways.Get("/", middleware.RequirePermissionAny("layaways.read"), handlers.GetLayaways)
+	layaways.Post("/", middleware.RequirePermissionAny("layaways.create"), handlers.CreateLayaway)
+	layaways.Get("/:id", middleware.RequirePermissionAny("layaways.read"), handlers.GetLayawayByID)
+	layaways.Put("/:id", middleware.RequirePermissionAny("layaways.update"), handlers.UpdateLayawayStatus)
+	layaways.Post("/:id/cancel", middleware.RequirePermissionAny("layaways.cancel"), handlers.CancelLayaway)
+	layaways.Post("/:id/payments", middleware.RequirePermissionAny("layaways.payment"), handlers.AddPayment)
+	layaways.Get("/:id/payments", middleware.RequirePermissionAny("layaways.read"), handlers.GetLayawayPayments)
+	layaways.Post("/check-expired", middleware.RequirePermissionAny("layaways.read"), handlers.ExpiredLayaways)
+	layaways.Delete("/:id", middleware.RequirePermissionAny("layaways.delete"), handlers.DeleteLayaway)
 
 	// ========== SYSTEM ==========
 	system := api.Group("/system", middleware.AuthMiddleware())
-	system.Post("/refresh-permissions", handlers.RefreshPermissions)
+	system.Post("/refresh-permissions", middleware.RequirePermissionAny("system.admin"), handlers.RefreshPermissions)
 
 	// ========== ROLES ==========
 	roles := api.Group("/roles", middleware.AuthMiddleware())
-	roles.Get("/", handlers.GetRoles)
-	roles.Post("/", handlers.CreateRole)
-	roles.Get("/:id", handlers.GetRoleByID)
-	roles.Put("/:id", handlers.UpdateRole)
-	roles.Delete("/:id", handlers.DeleteRole)
-	roles.Post("/:id/permissions", handlers.AssignPermissionsToRole)
+	roles.Get("/", middleware.RequirePermissionAny("roles.read"), handlers.GetRoles)
+	roles.Post("/", middleware.RequirePermissionAny("roles.create"), handlers.CreateRole)
+	roles.Get("/:id", middleware.RequirePermissionAny("roles.read"), handlers.GetRoleByID)
+	roles.Put("/:id", middleware.RequirePermissionAny("roles.update"), handlers.UpdateRole)
+	roles.Delete("/:id", middleware.RequirePermissionAny("roles.delete"), handlers.DeleteRole)
+	roles.Post("/:id/permissions", middleware.RequirePermissionAny("roles.assign"), handlers.AssignPermissionsToRole)
 
 	// ========== PERMISSIONS ==========
 	permissions := api.Group("/permissions", middleware.AuthMiddleware())
-	permissions.Get("/", handlers.GetPermissions)
-	permissions.Get("/search", handlers.SearchPermissions)
+	permissions.Get("/", middleware.RequirePermissionAny("permissions.read"), handlers.GetPermissions)
+	permissions.Get("/search", middleware.RequirePermissionAny("permissions.read"), handlers.SearchPermissions)
 
 	// ========== DASHBOARD ==========
 	api.Get("/dashboard/stock-alerts", middleware.AuthMiddleware(), handlers.GetStockAlerts)

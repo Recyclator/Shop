@@ -246,6 +246,9 @@ func UpdateProduct(c *fiber.Ctx) error {
 
 	updates := make(map[string]interface{})
 
+	if input.SKU != "" {
+		updates["sku"] = input.SKU
+	}
 	if input.Nombre != "" {
 		updates["nombre"] = input.Nombre
 		updates["slug"] = generateSlug(input.Nombre)

@@ -46,7 +46,7 @@ func (User) TableName() string {
 // Input types para auth
 type RegisterInput struct {
 	Email           string `json:"email" validate:"required,email"`
-	Password        string `json:"password" validate:"required,min=6"`
+	Password        string `json:"password" validate:"required,min=12"`
 	ConfirmPassword string `json:"confirm_password" validate:"required"`
 	Nombre          string `json:"nombre" validate:"required"`
 	Apellido        string `json:"apellido"`
@@ -66,7 +66,7 @@ type RefreshTokenInput struct {
 
 type ChangePasswordInput struct {
 	CurrentPassword string `json:"current_password" validate:"required"`
-	NewPassword     string `json:"new_password" validate:"required,min=6"`
+	NewPassword     string `json:"new_password" validate:"required,min=12"`
 	ConfirmPassword string `json:"confirm_password" validate:"required"`
 }
 

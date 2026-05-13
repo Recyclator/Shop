@@ -5,15 +5,15 @@ services:
     image: postgres:15-alpine
     container_name: nexora-postgres
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: nexora
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -23,20 +23,14 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: nexora-api
+    env_file: .env.docker
     environment:
       - DB_HOST=postgres
       - DB_PORT=5432
-      - DB_USER=postgres
-      - DB_PASSWORD=password
-      - DB_NAME=nexora
+      - DB_USER=${POSTGRES_USER}
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_NAME=${POSTGRES_DB}
       - DB_SSL_MODE=disable
-      - JWT_SECRET=super-secret-jwt-key-change-in-production
-      - JWT_EXPIRE_HOURS=168
-      - SERVER_PORT=3000
-      - ENV=development
-      - QR_BASE_URL=https://nexora.co/qr
-      - CASBIN_MODEL_PATH=internal/casbin/model.conf
-      - CASBIN_POLICY_PATH=internal/casbin/policy.csv
     ports:
       - "3000:3000"
     depends_on:
@@ -44,7 +38,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
     volumes:
-      - ./:/app
+      - ./tmp/uploads:/app/tmp/uploads
 
   # Para desarrollo con Air (reload automático)
   api-dev:
@@ -52,18 +46,14 @@ services:
       context: .
       dockerfile: Dockerfile.dev
     container_name: nexora-api-dev
+    env_file: .env.docker
     environment:
       - DB_HOST=postgres
       - DB_PORT=5432
-      - DB_USER=postgres
-      - DB_PASSWORD=password
-      - DB_NAME=nexora
+      - DB_USER=${POSTGRES_USER}
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_NAME=${POSTGRES_DB}
       - DB_SSL_MODE=disable
-      - JWT_SECRET=dev-secret-key
-      - JWT_EXPIRE_HOURS=168
-      - SERVER_PORT=3000
-      - ENV=development
-      - QR_BASE_URL=http://localhost:3000/qr
     ports:
       - "3000:3000"
     depends_on:

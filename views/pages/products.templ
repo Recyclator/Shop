@@ -8,9 +8,9 @@ templ ProductsPage() {
 		<button class="btn btn-primary" onclick="openModal()"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Nuevo Producto</button>
 	</div>
 	<div class="toolbar">
-		<input type="text" placeholder="Buscar por nombre, SKU..." id="search-filter">
-		<select id="status-filter"><option value="">Todos</option><option value="activo">Activo</option><option value="inactivo">Inactivo</option></select>
-		<select id="category-filter"><option value="">Todas las categorías</option></select>
+		<input type="text" class="form-input-tw" placeholder="Buscar por nombre, SKU..." id="search-filter">
+		<select id="status-filter" class="form-input"><option value="">Todos</option><option value="activo">Activo</option><option value="inactivo">Inactivo</option></select>
+		<select id="category-filter" class="form-input"><option value="">Todas las categorías</option></select>
 		<button class="btn btn-secondary" onclick="loadProducts()">Filtrar</button>
 	</div>
 	<div class="card"><div class="card-body p-0">
@@ -28,7 +28,7 @@ templ ProductsPage() {
 		</form></div>
 		<div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="saveProduct()">Guardar</button></div>
 	</div></div>
-	<script src="/public/toast.js"></script>
+	<script src="/static/js/toast.js"></script>
 	<script>
 		let currentPage = 1, currentSearch = '', currentStatus = '', currentCategory = '';
 		async function loadProducts(page = 1) {

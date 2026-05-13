@@ -20,9 +20,9 @@ templ UsersPage(data UsersData) {
 	</div>
 
 	<div class="toolbar">
-		<input type="text" placeholder="Buscar por nombre, email..." id="search-filter">
-		<select id="role-filter"><option value="">Todos los roles</option></select>
-		<select id="status-filter"><option value="">Todos los estados</option><option value="true">Activo</option><option value="false">Inactivo</option></select>
+		<input type="text" class="form-input-tw" placeholder="Buscar por nombre, email..." id="search-filter">
+		<select id="role-filter" class="form-input"><option value="">Todos los roles</option></select>
+		<select id="status-filter" class="form-input"><option value="">Todos los estados</option><option value="true">Activo</option><option value="false">Inactivo</option></select>
 		<button class="btn btn-secondary" onclick="loadUsers()">Filtrar</button>
 	</div>
 
@@ -97,7 +97,7 @@ templ UsersPage(data UsersData) {
 		</div>
 	</div>
 
-	<script src="/public/toast.js"></script>
+	<script src="/static/js/toast.js"></script>
 	<script>
 		let currentPage = 1, currentSearch = '', currentRole = '', currentStatus = '';
 		let allRoles = [];
