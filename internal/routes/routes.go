@@ -122,6 +122,18 @@ func Setup(app *fiber.App) {
 	permissions := api.Group("/permissions", middleware.AuthMiddleware())
 	permissions.Get("/", handlers.GetPermissions)
 	permissions.Get("/search", handlers.SearchPermissions)
+	permissions.Get("/:id", handlers.GetPermissionByID)
+
+	// User permissions
+	api.Get("/auth/permissions", middleware.AuthMiddleware(), handlers.GetMyPermissions)
+
+	// ========== INVOICES ==========
+	invoices := api.Group("/invoices", middleware.AuthMiddleware())
+	invoices.Get("/", handlers.GetInvoices)
+	invoices.Get("/:id", handlers.GetInvoiceByID)
+	invoices.Post("/", handlers.CreateInvoiceFromOrder)
+	invoices.Post("/:id/send", handlers.SendInvoiceToDIAN)
+	invoices.Get("/:id/xml", handlers.GetInvoiceXML)
 
 	// ========== DASHBOARD ==========
 	api.Get("/dashboard/stock-alerts", middleware.AuthMiddleware(), handlers.GetStockAlerts)

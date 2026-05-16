@@ -10,7 +10,7 @@ air-test.log
 nexora-server
 server-bin
 tmp/
-server-bin
 bin/
 node_modules/
 package-lock.json
+public/

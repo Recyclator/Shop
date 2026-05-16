@@ -18,3 +18,6 @@ type RolePermission struct {
 func (RolePermission) TableName() string {
 	return "role_permissions"
 }
+
+// Default role-permission join table name used by GORM many2many
+const RolePermissionJoinTable = "role_permissions"

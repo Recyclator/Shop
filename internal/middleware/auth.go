@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -102,12 +103,13 @@ func OptionalAuthMiddleware() fiber.Handler {
 // RateLimiterMiddleware implementa rate limiting básico
 func RateLimiterMiddleware(maxRequests int, window time.Duration) fiber.Handler {
 	requests := make(map[string][]time.Time)
+	var mu sync.Mutex
 
 	return func(c *fiber.Ctx) error {
 		ip := c.IP()
 		now := time.Now()
 
-		// Limpiar solicitudes antiguas
+		mu.Lock()
 		validRequests := requests[ip][:0]
 		for _, t := range requests[ip] {
 			if now.Sub(t) < window {
@@ -116,13 +118,13 @@ func RateLimiterMiddleware(maxRequests int, window time.Duration) fiber.Handler 
 		}
 		requests[ip] = validRequests
 
-		// Verificar límite
 		if len(requests[ip]) >= maxRequests {
+			mu.Unlock()
 			return utils.ErrorWithCode(c, fiber.StatusTooManyRequests, "RATE_LIMIT", "demasiadas solicitudes, intenta más tarde")
 		}
 
-		// Agregar solicitud actual
 		requests[ip] = append(requests[ip], now)
+		mu.Unlock()
 		return c.Next()
 	}
 }

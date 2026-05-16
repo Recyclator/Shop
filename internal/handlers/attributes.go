@@ -1,8 +1,6 @@
 package handlers
 
 import (
-	"fmt"
-
 	"github.com/gofiber/fiber/v2"
 	"github.com/nexora/backend/internal/database"
 	"github.com/nexora/backend/internal/middleware"
@@ -61,14 +59,10 @@ func CreateAttribute(c *fiber.Ctx) error {
 }
 
 func GetAttributesByCategory(c *fiber.Ctx) error {
-	fmt.Printf("DEBUG: GetAttributesByCategory called with categoriaID param: %s\n", c.Params("id"))
-
 	categoriaID, err := c.ParamsInt("id")
 	if err != nil {
 		return utils.ErrorWithCode(c, fiber.StatusBadRequest, "INVALID_ID", "ID de categoría inválido")
 	}
-
-	fmt.Printf("DEBUG: Fetching attributes for category ID: %d\n", categoriaID)
 
 	var atributos []models.ProductAttribute
 	if err := database.DB.Where("categoria_id = ? AND activo = ?", categoriaID, true).

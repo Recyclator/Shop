@@ -48,7 +48,6 @@ func Migrate() error {
 		&models.Customer{},
 		&models.Category{},
 		&models.Product{},
-		&models.ProductImage{},
 		&models.ProductVariant{},
 		&models.VariantAttributeValue{},
 		&models.ProductAttribute{},
@@ -97,7 +96,7 @@ func SeedData() error {
 	var userCount int64
 	DB.Model(&models.User{}).Count(&userCount)
 	if userCount == 0 {
-		hashedPassword, err := utils.HashPassword("superadmin123")
+		hashedPassword, err := utils.HashPassword("Nex0rA!2024#Admin")
 		if err != nil {
 			return fmt.Errorf("error al hash contraseña: %w", err)
 		}
@@ -123,7 +122,7 @@ func SeedData() error {
 			return fmt.Errorf("error al crear usuario superadmin: %w", err)
 		}
 
-		log.Println("✅ Usuario superadmin creado: superadmin@nexora.com / superadmin123")
+		log.Println("✅ Usuario superadmin creado: superadmin@nexora.com / (ver .env.example para contraseña)")
 	}
 
 	log.Println("✅ Datos iniciales creados")

@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -50,10 +51,10 @@ func main() {
 	app.Use(recover.New())
 	app.Use(logger.New())
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     "*",
+		AllowOrigins:     cfg.FrontendURL + "," + cfg.AppURL,
 		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",
 		AllowHeaders:     "Origin, Content-Type, Accept, Authorization",
-		AllowCredentials: false,
+		AllowCredentials: true,
 	}))
 
 	// Servir archivos estáticos (CSS, JS, imágenes)
@@ -63,6 +64,15 @@ func main() {
 	// Servir la página de Login/Registro en la raíz
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.SendFile("./public/index.html")
+	})
+
+	// Health check
+	app.Get("/health", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{
+			"status":    "ok",
+			"timestamp": time.Now().UTC().Format(time.RFC3339),
+			"version":   "1.0.0",
+		})
 	})
 
 	// Rutas que renderizan páginas con Templ + HTMX

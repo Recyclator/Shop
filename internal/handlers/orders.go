@@ -111,14 +111,17 @@ func CreateOrder(c *fiber.Ctx) error {
 
 	items := make([]models.OrderItem, len(input.Items))
 
+	tx := database.DB.Begin()
+
 	for i, item := range input.Items {
 		var product models.Product
-		if result := database.DB.First(&product, item.ProductoID); result.Error != nil {
+		if result := tx.First(&product, item.ProductoID); result.Error != nil {
+			tx.Rollback()
 			return utils.ErrorWithCode(c, fiber.StatusBadRequest, "INVALID_PRODUCT", fmt.Sprintf("producto %d no encontrado", item.ProductoID))
 		}
 
-		// Verificar stock
 		if product.ControlaInventario && product.Stock < item.Cantidad && !product.PermiteStockNegativo {
+			tx.Rollback()
 			return utils.ErrorWithCode(c, fiber.StatusBadRequest, "INSUFFICIENT_STOCK", fmt.Sprintf("stock insuficiente para %s", product.Nombre))
 		}
 
@@ -139,9 +142,11 @@ func CreateOrder(c *fiber.Ctx) error {
 		subtotal += itemTotal
 		impuesto += itemImpuesto
 
-		// Actualizar stock
 		if product.ControlaInventario {
-			database.DB.Model(&product).Update("stock", database.DB.Raw("stock - ?", item.Cantidad))
+			if err := tx.Model(&product).Update("stock", product.Stock-item.Cantidad).Error; err != nil {
+				tx.Rollback()
+				return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "STOCK_ERROR", "error al actualizar stock")
+			}
 		}
 	}
 
@@ -166,7 +171,7 @@ func CreateOrder(c *fiber.Ctx) error {
 		Estado:             "completado",
 		MetodoPago:         input.MetodoPago,
 		ReferenciaPago:     input.ReferenciaPago,
-		FechaPago:          &time.Time{},
+		FechaPago:          nil,
 		EstadoPago:         "pagado",
 		Subtotal:           subtotal,
 		Descuento:          descuento,
@@ -176,6 +181,15 @@ func CreateOrder(c *fiber.Ctx) error {
 		VendedorID:         &currentUser.ID,
 		Notas:              input.Notas,
 		Items:              items,
+	}
+
+	if result := tx.Create(&order); result.Error != nil {
+		tx.Rollback()
+		return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "CREATE_ERROR", "error al crear pedido")
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "COMMIT_ERROR", "error al confirmar la transacción")
 	}
 
 	// Guardar cliente si se proporciona
@@ -423,15 +437,20 @@ func CancelOrder(c *fiber.Ctx) error {
 	}
 
 	// Restaurar stock
+	tx := database.DB.Begin()
 	for _, item := range order.Items {
 		var product models.Product
-		if result := database.DB.First(&product, item.ProductoID); result.Error == nil && product.ControlaInventario {
-			database.DB.Model(&product).Update("stock", database.DB.Raw("stock + ?", item.Cantidad))
+		if result := tx.First(&product, item.ProductoID); result.Error == nil && product.ControlaInventario {
+			if err := tx.Model(&product).Update("stock", product.Stock+item.Cantidad).Error; err != nil {
+				tx.Rollback()
+				return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "STOCK_ERROR", "error al restaurar stock")
+			}
 		}
 	}
 
 	order.Estado = "cancelado"
-	database.DB.Save(&order)
+	tx.Save(&order)
+	tx.Commit()
 
 	return utils.Success(c, fiber.StatusOK, "pedido cancelado exitosamente", order.ToResponse())
 }

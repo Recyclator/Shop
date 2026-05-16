@@ -74,12 +74,3 @@ func ValidateJWT(tokenString string) (*JWTClaims, error) {
 
 	return nil, errors.New("token inválido")
 }
-
-func RefreshToken(tokenString string, expire, refreshExpire time.Duration) (*TokenPair, error) {
-	claims, err := ValidateJWT(tokenString)
-	if err != nil {
-		return nil, err
-	}
-
-	return GenerateTokenPair(claims.UserID, claims.Email, claims.Role, expire, refreshExpire)
-}

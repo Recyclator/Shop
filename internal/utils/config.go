@@ -4,10 +4,6 @@ import "os"
 
 var jwtSecret string
 
-func InitJWTSecret(secret string) {
-	jwtSecret = secret
-}
-
 func GetJWTSecret() string {
 	if jwtSecret == "" {
 		jwtSecret = os.Getenv("JWT_SECRET")

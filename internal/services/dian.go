@@ -23,6 +23,27 @@ func NewDIANService() *DIANService {
 	}
 }
 
+func escapeXML(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		switch r {
+		case '&':
+			b.WriteString("&amp;")
+		case '<':
+			b.WriteString("&lt;")
+		case '>':
+			b.WriteString("&gt;")
+		case '"':
+			b.WriteString("&quot;")
+		case '\'':
+			b.WriteString("&apos;")
+		default:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
 func (s *DIANService) GenerateInvoiceXML(invoice *models.Invoice) (string, error) {
 	var sb strings.Builder
 
@@ -44,8 +65,8 @@ func (s *DIANService) GenerateInvoiceXML(invoice *models.Invoice) (string, error
 	sb.WriteString("  <cbc:UBLVersionID>2.1</cbc:UBLVersionID>\n")
 	sb.WriteString("  <cbc:CustomizationID>urn:cenit:specification:ubl:invoice:CII:2.1</cbc:CustomizationID>\n")
 	sb.WriteString(fmt.Sprintf("  <cbc:ProfileID>DIAN 2.1</cbc:ProfileID>\n"))
-	sb.WriteString(fmt.Sprintf("  <cbc:ProfileExecutionID>%s</cbc:ProfileExecutionID>\n", s.cfg.Env))
-	sb.WriteString(fmt.Sprintf("  <cbc:ID>%s</cbc:ID>\n", invoice.NumeroCompleto))
+	sb.WriteString(fmt.Sprintf("  <cbc:ProfileExecutionID>%s</cbc:ProfileExecutionID>\n", escapeXML(s.cfg.Env)))
+	sb.WriteString(fmt.Sprintf("  <cbc:ID>%s</cbc:ID>\n", escapeXML(invoice.NumeroCompleto)))
 	sb.WriteString(fmt.Sprintf("  <cbc:IssueDate>%s</cbc:IssueDate>\n", invoice.FechaEmision.Format("2006-01-02")))
 	sb.WriteString(fmt.Sprintf("  <cbc:IssueTime>%s</cbc:IssueTime>\n", invoice.HoraEmision))
 	sb.WriteString(fmt.Sprintf("  <cbc:InvoiceTypeCode>01</cbc:InvoiceTypeCode>\n"))
@@ -54,12 +75,12 @@ func (s *DIANService) GenerateInvoiceXML(invoice *models.Invoice) (string, error
 
 	sb.WriteString("  <cac:AccountingSupplierParty>\n")
 	sb.WriteString("    <cac:Party>\n")
-	sb.WriteString(fmt.Sprintf("      <cac:PartyName><cbc:Name>%s</cbc:Name></cac:PartyName>\n", s.cfg.CompanyName))
+	sb.WriteString(fmt.Sprintf("      <cac:PartyName><cbc:Name>%s</cbc:Name></cac:PartyName>\n", escapeXML(s.cfg.CompanyName)))
 	sb.WriteString("      <cac:PhysicalLocation>\n")
 	sb.WriteString("        <cac:Address>\n")
-	sb.WriteString(fmt.Sprintf("          <cbc:ID>%s</cbc:ID>\n", s.cfg.CompanyCityCode))
-	sb.WriteString(fmt.Sprintf("          <cbc:CityName>%s</cbc:CityName>\n", s.cfg.CompanyCity))
-	sb.WriteString(fmt.Sprintf("          <cbc:CountrySubentity>%s</cbc:CountrySubentity>\n", s.cfg.CompanyDepartment))
+	sb.WriteString(fmt.Sprintf("          <cbc:ID>%s</cbc:ID>\n", escapeXML(s.cfg.CompanyCityCode)))
+	sb.WriteString(fmt.Sprintf("          <cbc:CityName>%s</cbc:CityName>\n", escapeXML(s.cfg.CompanyCity)))
+	sb.WriteString(fmt.Sprintf("          <cbc:CountrySubentity>%s</cbc:CountrySubentity>\n", escapeXML(s.cfg.CompanyDepartment)))
 	sb.WriteString("          <cac:AddressLine><cbc:Line></cbc:Line></cac:AddressLine>\n")
 	sb.WriteString("          <cac:Country>\n")
 	sb.WriteString("            <cbc:IdentificationCode>CO</cbc:IdentificationCode>\n")
@@ -68,21 +89,20 @@ func (s *DIANService) GenerateInvoiceXML(invoice *models.Invoice) (string, error
 	sb.WriteString("        </cac:Address>\n")
 	sb.WriteString("      </cac:PhysicalLocation>\n")
 	sb.WriteString("      <cac:PartyTaxScheme>\n")
-	sb.WriteString(fmt.Sprintf("        <cbc:RegistrationName>%s</cbc:RegistrationName>\n", s.cfg.CompanyName))
-	sb.WriteString(fmt.Sprintf("        <cbc:CompanyID>%s</cbc:CompanyID>\n", s.cfg.CompanyNIT))
-	sb.WriteString("        <cbc:TaxLevelCode>04</cbc:TaxLevelCode>\n")
+	sb.WriteString(fmt.Sprintf("        <cbc:RegistrationName>%s</cbc:RegistrationName>\n", escapeXML(s.cfg.CompanyName)))
+	sb.WriteString(fmt.Sprintf("        <cbc:CompanyID>%s</cbc:CompanyID>\n", escapeXML(s.cfg.CompanyNIT)))
 	sb.WriteString("        <cac:Country><cbc:IdentificationCode>CO</cbc:IdentificationCode></cac:Country>\n")
 	sb.WriteString("      </cac:PartyTaxScheme>\n")
-	sb.WriteString(fmt.Sprintf("      <cac:Contact><cbc:Telephone>%s</cbc:Telephone><cbc:ElectronicMail>%s</cbc:ElectronicMail></cac:Contact>\n", s.cfg.CompanyPhone, s.cfg.CompanyEmail))
+	sb.WriteString(fmt.Sprintf("      <cac:Contact><cbc:Telephone>%s</cbc:Telephone><cbc:ElectronicMail>%s</cbc:ElectronicMail></cac:Contact>\n", escapeXML(s.cfg.CompanyPhone), escapeXML(s.cfg.CompanyEmail)))
 	sb.WriteString("    </cac:Party>\n")
 	sb.WriteString("  </cac:AccountingSupplierParty>\n")
 
 	sb.WriteString("  <cac:AccountingCustomerParty>\n")
 	sb.WriteString("    <cac:Party>\n")
-	sb.WriteString(fmt.Sprintf("      <cac:PartyName><cbc:Name>%s</cbc:Name></cac:PartyName>\n", invoice.ClienteNombre))
+	sb.WriteString(fmt.Sprintf("      <cac:PartyName><cbc:Name>%s</cbc:Name></cac:PartyName>\n", escapeXML(invoice.ClienteNombre)))
 	sb.WriteString("      <cac:PartyTaxScheme>\n")
-	sb.WriteString(fmt.Sprintf("        <cbc:RegistrationName>%s</cbc:RegistrationName>\n", invoice.ClienteNombre))
-	sb.WriteString(fmt.Sprintf("        <cbc:CompanyID>%s</cbc:CompanyID>\n", invoice.ClienteNIT))
+	sb.WriteString(fmt.Sprintf("        <cbc:RegistrationName>%s</cbc:RegistrationName>\n", escapeXML(invoice.ClienteNombre)))
+	sb.WriteString(fmt.Sprintf("        <cbc:CompanyID>%s</cbc:CompanyID>\n", escapeXML(invoice.ClienteNIT)))
 	sb.WriteString("        <cbc:TaxLevelCode>ZZ</cbc:TaxLevelCode>\n")
 	sb.WriteString("        <cac:Country><cbc:IdentificationCode>CO</cbc:IdentificationCode></cac:Country>\n")
 	sb.WriteString("      </cac:PartyTaxScheme>\n")
@@ -113,7 +133,7 @@ func (s *DIANService) GenerateInvoiceXML(invoice *models.Invoice) (string, error
 		sb.WriteString(fmt.Sprintf("    <cbc:InvoicedQuantity unitCode=\"EA\">%d</cbc:InvoicedQuantity>\n", item.Cantidad))
 		sb.WriteString(fmt.Sprintf("    <cbc:LineExtensionAmount currencyID=\"COP\">%.2f</cbc:LineExtensionAmount>\n", item.Total))
 		sb.WriteString("    <cac:Item>\n")
-		sb.WriteString(fmt.Sprintf("      <cbc:Description>%s</cbc:Description>\n", item.NombreProducto))
+		sb.WriteString(fmt.Sprintf("      <cbc:Description>%s</cbc:Description>\n", escapeXML(item.NombreProducto)))
 		sb.WriteString("    </cac:Item>\n")
 		sb.WriteString("    <cac:Price>\n")
 		sb.WriteString(fmt.Sprintf("      <cbc:PriceAmount currencyID=\"COP\">%.2f</cbc:PriceAmount>\n", item.PrecioUnitario))

@@ -1,7 +1,9 @@
 package utils
 
 import (
+	"crypto/rand"
 	"errors"
+	"math/big"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -17,13 +19,35 @@ func CheckPassword(password, hash string) bool {
 }
 
 func ValidatePassword(password string) error {
-	if len(password) < 6 {
-		return errors.New("la contraseña debe tener al menos 6 caracteres")
+	if len(password) < 8 {
+		return errors.New("la contraseña debe tener al menos 8 caracteres")
+	}
+	hasUpper := false
+	hasLower := false
+	hasDigit := false
+	for _, c := range password {
+		if c >= 'A' && c <= 'Z' {
+			hasUpper = true
+		}
+		if c >= 'a' && c <= 'z' {
+			hasLower = true
+		}
+		if c >= '0' && c <= '9' {
+			hasDigit = true
+		}
+	}
+	if !hasUpper || !hasLower || !hasDigit {
+		return errors.New("la contraseña debe contener mayúsculas, minúsculas y números")
 	}
 	return nil
 }
 
 func GenerateRandomPassword(length int) string {
-	// Implementar si se necesita generación automática de contraseñas
-	return ""
+	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*"
+	password := make([]byte, length)
+	for i := range password {
+		n, _ := rand.Int(rand.Reader, big.NewInt(int64(len(charset))))
+		password[i] = charset[n.Int64()]
+	}
+	return string(password)
 }

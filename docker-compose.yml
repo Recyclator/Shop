@@ -35,8 +35,8 @@ services:
       - SERVER_PORT=3000
       - ENV=development
       - QR_BASE_URL=https://nexora.co/qr
-      - CASBIN_MODEL_PATH=internal/casbin/model.conf
-      - CASBIN_POLICY_PATH=internal/casbin/policy.csv
+      - CASBIN_MODEL_PATH=pkg/casbin/model.conf
+      - CASBIN_POLICY_PATH=pkg/casbin/policy.csv
     ports:
       - "3000:3000"
     depends_on:

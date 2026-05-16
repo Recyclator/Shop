@@ -129,7 +129,7 @@ func GetProductByBarcode(c *fiber.Ctx) error {
 		Preload("Categoria").
 		Preload("Tags").
 		Preload("Variantes").
-		Where("sku = ?", code).First(&product); result.Error != nil {
+		Where("barcode = ? OR sku = ?", code, code).First(&product); result.Error != nil {
 		return utils.ErrorWithCode(c, fiber.StatusNotFound, "NOT_FOUND", "producto no encontrado")
 	}
 
@@ -466,11 +466,6 @@ func generateSlug(nombre string) string {
 		slug = strings.ReplaceAll(slug, "--", "-")
 	}
 	return strings.Trim(slug, "-")
-}
-
-// Now retorna el tiempo actual
-func Now() int64 {
-	return 0
 }
 
 // AdjustProductStock ajusta el stock de un producto

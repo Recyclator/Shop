@@ -53,15 +53,6 @@ func SuccessData(c *fiber.Ctx, status int, data interface{}) error {
 	})
 }
 
-func Error(c *fiber.Ctx, status int, message string) error {
-	return c.Status(status).JSON(Response{
-		Success: false,
-		Error: &ErrorDetail{
-			Message: message,
-		},
-	})
-}
-
 func ErrorWithCode(c *fiber.Ctx, status int, code, message string) error {
 	return c.Status(status).JSON(Response{
 		Success: false,
@@ -100,33 +91,3 @@ func Paginated(c *fiber.Ctx, status int, data interface{}, page, limit int, tota
 		},
 	})
 }
-
-// Errores comunes
-var (
-	ErrUnauthorized    = fiber.NewError(fiber.StatusUnauthorized, "no autorizado")
-	ErrForbidden       = fiber.NewError(fiber.StatusForbidden, "acceso prohibido")
-	ErrNotFound        = fiber.NewError(fiber.StatusNotFound, "no encontrado")
-	ErrBadRequest      = fiber.NewError(fiber.StatusBadRequest, "solicitud inválida")
-	ErrConflict        = fiber.NewError(fiber.StatusConflict, "conflicto de datos")
-	ErrInternalServer  = fiber.NewError(fiber.StatusInternalServerError, "error interno del servidor")
-	ErrTooManyRequests = fiber.NewError(fiber.StatusTooManyRequests, "demasiadas solicitudes")
-)
-
-// Errores de autenticación
-var (
-	ErrInvalidCredentials = fiber.NewError(fiber.StatusUnauthorized, "credenciales inválidas")
-	ErrTokenExpired       = fiber.NewError(fiber.StatusUnauthorized, "token expirado")
-	ErrTokenInvalid       = fiber.NewError(fiber.StatusUnauthorized, "token inválido")
-	ErrUserInactive       = fiber.NewError(fiber.StatusForbidden, "usuario inactivo")
-	ErrUserLocked         = fiber.NewError(fiber.StatusForbidden, "usuario bloqueado")
-)
-
-// Errores de validación
-var (
-	ErrInvalidEmail     = fiber.NewError(fiber.StatusBadRequest, "email inválido")
-	ErrInvalidPassword  = fiber.NewError(fiber.StatusBadRequest, "contraseña inválida")
-	ErrPasswordMismatch = fiber.NewError(fiber.StatusBadRequest, "las contraseñas no coinciden")
-	ErrEmailExists      = fiber.NewError(fiber.StatusConflict, "el email ya está registrado")
-	ErrSKUExists        = fiber.NewError(fiber.StatusConflict, "el SKU ya existe")
-	ErrResourceNotFound = fiber.NewError(fiber.StatusNotFound, "recurso no encontrado")
-)

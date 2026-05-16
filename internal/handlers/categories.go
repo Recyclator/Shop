@@ -1,12 +1,13 @@
 package handlers
 
 import (
+	"strings"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/nexora/backend/internal/database"
 	"github.com/nexora/backend/internal/middleware"
 	"github.com/nexora/backend/internal/models"
 	"github.com/nexora/backend/internal/utils"
-	"strings"
 )
 
 // GetCategories obtener todas las categorías
@@ -93,7 +94,7 @@ func CreateCategory(c *fiber.Ctx) error {
 	}
 
 	// Verificar que no exista una categoría con el mismo nombre
-	slug := generateCategorySlug(input.Nombre)
+	slug := generateSlug(input.Nombre)
 	var existing models.Category
 	if result := database.DB.Where("slug = ?", slug).First(&existing); result.RowsAffected > 0 {
 		return utils.ErrorWithCode(c, fiber.StatusConflict, "CATEGORY_EXISTS", "ya existe una categoría con ese nombre")
@@ -154,7 +155,7 @@ func UpdateCategory(c *fiber.Ctx) error {
 
 	if input.Nombre != "" {
 		updates["nombre"] = input.Nombre
-		updates["slug"] = generateCategorySlug(input.Nombre)
+		updates["slug"] = generateSlug(input.Nombre)
 	}
 	if input.Descripcion != "" {
 		updates["descripcion"] = input.Descripcion
@@ -231,23 +232,4 @@ func DeleteCategory(c *fiber.Ctx) error {
 	}
 
 	return utils.SuccessMessage(c, fiber.StatusOK, "categoría eliminada exitosamente")
-}
-
-func generateCategorySlug(nombre string) string {
-	slug := strings.ToLower(nombre)
-	slug = strings.ReplaceAll(slug, " ", "-")
-	slug = strings.ReplaceAll(slug, "_", "-")
-
-	var result strings.Builder
-	for _, r := range slug {
-		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' {
-			result.WriteRune(r)
-		}
-	}
-
-	slug = result.String()
-	for strings.Contains(slug, "--") {
-		slug = strings.ReplaceAll(slug, "--", "-")
-	}
-	return strings.Trim(slug, "-")
 }

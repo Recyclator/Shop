@@ -12,7 +12,6 @@ import (
 
 // RenderDashboard handles GET /dashboard
 func RenderDashboard(c *fiber.Ctx) error {
-	println("DEBUG: RenderDashboard called")
 	data := pages.DashboardData{
 		Stats: []pages.StatCard{
 			{Label: "Ingresos totales", Value: "$84,291", Icon: "blue", Trend: "↑ 18.4%", Up: true},

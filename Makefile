@@ -2,12 +2,12 @@
 
 dev:
 	@echo "▶ Starting dev server..."
-	templ generate --watch & termux-chroot air
+	templ generate --watch & air
 
 build:
 	@echo "▶ Building..."
 	templ generate
-	go build -o bin/server ./cmd/server
+	go build -o bin/server .
 
 clean:
 	@echo "▶ Cleaning generated files..."
