@@ -2,10 +2,11 @@
 
 dev:
 	@echo "▶ Starting dev server..."
-	templ generate --watch & air
+	npx @tailwindcss/cli -i ./static/css/input.css -o ./static/css/app-ui.css --watch & templ generate --watch & air
 
 build:
 	@echo "▶ Building..."
+	npx @tailwindcss/cli -i ./static/css/input.css -o ./static/css/app-ui.css
 	templ generate
 	go build -o bin/server .
 

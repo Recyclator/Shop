@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"math/big"
+	"unicode"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -19,26 +20,37 @@ func CheckPassword(password, hash string) bool {
 }
 
 func ValidatePassword(password string) error {
-	if len(password) < 8 {
-		return errors.New("la contraseña debe tener al menos 8 caracteres")
+	if len(password) < 12 {
+		return errors.New("la contraseña debe tener al menos 12 caracteres")
 	}
-	hasUpper := false
-	hasLower := false
-	hasDigit := false
-	for _, c := range password {
-		if c >= 'A' && c <= 'Z' {
+
+	var hasUpper, hasLower, hasDigit, hasSpecial bool
+	for _, r := range password {
+		switch {
+		case unicode.IsUpper(r):
 			hasUpper = true
-		}
-		if c >= 'a' && c <= 'z' {
+		case unicode.IsLower(r):
 			hasLower = true
-		}
-		if c >= '0' && c <= '9' {
+		case unicode.IsDigit(r):
 			hasDigit = true
+		case unicode.IsPunct(r) || unicode.IsSymbol(r):
+			hasSpecial = true
 		}
 	}
-	if !hasUpper || !hasLower || !hasDigit {
-		return errors.New("la contraseña debe contener mayúsculas, minúsculas y números")
+
+	if !hasUpper {
+		return errors.New("la contraseña debe contener al menos una letra mayúscula")
 	}
+	if !hasLower {
+		return errors.New("la contraseña debe contener al menos una letra minúscula")
+	}
+	if !hasDigit {
+		return errors.New("la contraseña debe contener al menos un número")
+	}
+	if !hasSpecial {
+		return errors.New("la contraseña debe contener al menos un símbolo especial")
+	}
+
 	return nil
 }
 

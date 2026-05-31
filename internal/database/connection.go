@@ -3,6 +3,7 @@ package database
 import (
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"gorm.io/driver/postgres"
@@ -92,37 +93,42 @@ func SeedData() error {
 		return fmt.Errorf("error al asignar permisos: %w", err)
 	}
 
-	// Crear usuario superadmin de prueba
+	// Crear usuario superadmin de prueba (solo si se define INITIAL_ADMIN_PASSWORD)
 	var userCount int64
 	DB.Model(&models.User{}).Count(&userCount)
 	if userCount == 0 {
-		hashedPassword, err := utils.HashPassword("Nex0rA!2024#Admin")
-		if err != nil {
-			return fmt.Errorf("error al hash contraseña: %w", err)
-		}
+		initialAdminPass := os.Getenv("INITIAL_ADMIN_PASSWORD")
+		if initialAdminPass == "" {
+			log.Println("⚠️  Saltando creación de superadmin: defina INITIAL_ADMIN_PASSWORD para crear uno")
+		} else {
+			hashedPassword, err := utils.HashPassword(initialAdminPass)
+			if err != nil {
+				return fmt.Errorf("error al hash contraseña: %w", err)
+			}
 
-		var superadminRole models.Role
-		if err := DB.Where("nombre = ?", "superadmin").First(&superadminRole).Error; err != nil {
-			return fmt.Errorf("error al buscar rol superadmin: %w", err)
-		}
+			var superadminRole models.Role
+			if err := DB.Where("nombre = ?", "superadmin").First(&superadminRole).Error; err != nil {
+				return fmt.Errorf("error al buscar rol superadmin: %w", err)
+			}
 
-		superadmin := models.User{
-			Email:           "superadmin@nexora.com",
-			Password:        hashedPassword,
-			Nombre:          "Super",
-			Apellido:        "Admin",
-			Telefono:        "3001234567",
-			TipoDocumento:   "CC",
-			NumeroDocumento: "1234567890",
-			Activo:          true,
-			Roles:           []models.Role{superadminRole},
-		}
+			superadmin := models.User{
+				Email:           "superadmin@nexora.com",
+				Password:        hashedPassword,
+				Nombre:          "Super",
+				Apellido:        "Admin",
+				Telefono:        "3001234567",
+				TipoDocumento:   "CC",
+				NumeroDocumento: "1234567890",
+				Activo:          true,
+				Roles:           []models.Role{superadminRole},
+			}
 
-		if err := DB.Create(&superadmin).Error; err != nil {
-			return fmt.Errorf("error al crear usuario superadmin: %w", err)
-		}
+			if err := DB.Create(&superadmin).Error; err != nil {
+				return fmt.Errorf("error al crear usuario superadmin: %w", err)
+			}
 
-		log.Println("✅ Usuario superadmin creado: superadmin@nexora.com / (ver .env.example para contraseña)")
+			log.Println("✅ Usuario superadmin creado: superadmin@nexora.com (password desde INITIAL_ADMIN_PASSWORD)")
+		}
 	}
 
 	log.Println("✅ Datos iniciales creados")

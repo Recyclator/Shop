@@ -13,7 +13,7 @@ templ POSPage() {
 
 		<!-- Products View -->
 		<div x-show="view === 'products'">
-			<div class="toolbar"><input type="text" placeholder="Buscar productos..." id="pos-search" @input="searchPOSProducts()"><input type="text" placeholder="Código de barras..." id="pos-barcode" @keyup.enter="scanBarcode()"></div>
+			<div class="toolbar"><input type="text" class="form-input-tw" placeholder="Buscar productos..." id="pos-search" @input="searchPOSProducts()"><input type="text" class="form-input-tw" placeholder="Código de barras..." id="pos-barcode" @keyup.enter="scanBarcode()"></div>
 			<div id="pos-products-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;">
 				<div style="text-align:center;padding:40px;color:var(--text-mut);grid-column:1/-1;">Cargando productos...</div>
 			</div>
@@ -45,6 +45,6 @@ templ POSPage() {
 		</div>
 	</div>
 
-	<script src="/public/toast.js"></script>
+	<script src="/static/js/toast.js"></script>
 	<script src="/static/js/pos.js"></script>
 }

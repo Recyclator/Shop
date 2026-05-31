@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -20,9 +21,9 @@ func Register(c *fiber.Ctx) error {
 		return utils.ErrorWithCode(c, fiber.StatusBadRequest, "INVALID_BODY", "formato de datos inválido")
 	}
 
-	// Validaciones básicas
-	if input.Email == "" || input.Password == "" || input.Nombre == "" {
-		return utils.ErrorWithCode(c, fiber.StatusBadRequest, "VALIDATION_ERROR", "email, password y nombre son requeridos")
+	// Validar estructura con go-playground validator
+	if validationErrors := utils.ValidateStruct(input); validationErrors != nil {
+		return utils.ErrorWithCode(c, fiber.StatusBadRequest, "VALIDATION_ERROR", utils.FirstValidationError(validationErrors))
 	}
 
 	// Validar formato de email
@@ -106,9 +107,9 @@ func Login(c *fiber.Ctx) error {
 		return utils.ErrorWithCode(c, fiber.StatusBadRequest, "INVALID_BODY", "formato de datos inválido")
 	}
 
-	// Validaciones
-	if input.Email == "" || input.Password == "" {
-		return utils.ErrorWithCode(c, fiber.StatusBadRequest, "VALIDATION_ERROR", "email y contraseña son requeridos")
+	// Validar estructura con go-playground validator
+	if validationErrors := utils.ValidateStruct(input); validationErrors != nil {
+		return utils.ErrorWithCode(c, fiber.StatusBadRequest, "VALIDATION_ERROR", utils.FirstValidationError(validationErrors))
 	}
 
 	// Buscar usuario
@@ -150,6 +151,9 @@ func Login(c *fiber.Ctx) error {
 	now := time.Now()
 	user.UltimoLogin = &now
 	database.DB.Save(&user)
+
+	// Log de auditoría de login exitoso
+	utils.LogSimple(user.ID, user.Email, "login", "auth", user.ID, true, "login exitoso desde "+c.IP())
 
 	// Obtener rol principal
 	roleName := "cliente"
@@ -275,10 +279,17 @@ func ChangePassword(c *fiber.Ctx) error {
 	return utils.SuccessMessage(c, fiber.StatusOK, "contraseña cambiada exitosamente")
 }
 
-// Logout maneja el cierre de sesión (útil para blacklist de tokens si se implementa)
+// Logout maneja el cierre de sesión (revoca el token JWT actual)
 // POST /api/auth/logout
 func Logout(c *fiber.Ctx) error {
-	// En una implementación más robusta, aquí se podría agregar el token a una lista negra (blacklist)
+	authHeader := c.Get("Authorization")
+	if authHeader != "" {
+		parts := strings.Split(authHeader, " ")
+		if len(parts) == 2 && parts[0] == "Bearer" {
+			// Revocar el token actual
+			utils.RevokeTokenString(parts[1])
+		}
+	}
 	return utils.SuccessMessage(c, fiber.StatusOK, "sesión cerrada exitosamente")
 }
 

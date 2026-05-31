@@ -12,6 +12,7 @@ import (
 	"github.com/nexora/backend/internal/config"
 	"github.com/nexora/backend/internal/database"
 	"github.com/nexora/backend/internal/handlers"
+	customMiddleware "github.com/nexora/backend/internal/middleware"
 	"github.com/nexora/backend/internal/routes"
 )
 
@@ -41,8 +42,26 @@ func main() {
 			if e, ok := err.(*fiber.Error); ok {
 				code = e.Code
 			}
+			// Log interno del error completo para debugging
+			log.Printf("[ERROR] %d: %v", code, err)
+			// Respuesta genérica al cliente, nunca exponer detalles internos
+			msg := "Error interno del servidor"
+			switch code {
+			case fiber.StatusBadRequest:
+				msg = "Solicitud inv\u00e1lida"
+			case fiber.StatusUnauthorized:
+				msg = "No autorizado"
+			case fiber.StatusForbidden:
+				msg = "Acceso prohibido"
+			case fiber.StatusNotFound:
+				msg = "Recurso no encontrado"
+			case fiber.StatusConflict:
+				msg = "Conflicto de datos"
+			case fiber.StatusTooManyRequests:
+				msg = "Demasiadas solicitudes"
+			}
 			return c.Status(code).JSON(fiber.Map{
-				"error": err.Error(),
+				"error": msg,
 			})
 		},
 	})
@@ -50,21 +69,23 @@ func main() {
 	// Middlewares globales
 	app.Use(recover.New())
 	app.Use(logger.New())
+	app.Use(customMiddleware.SecurityHeadersMiddleware())
 	app.Use(cors.New(cors.Config{
 		AllowOrigins:     cfg.FrontendURL + "," + cfg.AppURL,
 		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",
 		AllowHeaders:     "Origin, Content-Type, Accept, Authorization",
 		AllowCredentials: true,
+		MaxAge:           86400,
 	}))
 
 	// Servir archivos estáticos (CSS, JS, imágenes)
-	app.Static("/static", "./static")
-	app.Static("/public", "./public")
+	app.Static("/static", "./static", fiber.Static{
+		CacheDuration: 0,
+		MaxAge:        0,
+	})
 
 	// Servir la página de Login/Registro en la raíz
-	app.Get("/", func(c *fiber.Ctx) error {
-		return c.SendFile("./public/index.html")
-	})
+	app.Get("/", handlers.RenderAuth)
 
 	// Health check
 	app.Get("/health", func(c *fiber.Ctx) error {
