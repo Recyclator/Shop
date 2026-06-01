@@ -68,9 +68,9 @@ templ Base(title string, activeRoute string, content templ.Component) {
 			<link rel="stylesheet" href="/static/css/app-ui.css">
 			<link rel="stylesheet" href="/static/css/app-components.css">
 			<script src="https://unpkg.com/htmx.org@2.0.4"></script>
-			<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js" defer></script>
+			<script src="/static/js/alpine.min.js" defer></script>
 		</head>
-		<body hx-headers='{"Authorization": "Bearer " + (localStorage.getItem("nexora_token") || "")}'>
+		<body>
 			@partials.Sidebar(activeRoute)
 
 			<div class="main-wrapper">
@@ -123,6 +123,14 @@ templ Base(title string, activeRoute string, content templ.Component) {
 						return res;
 					});
 				};
+
+				// HTMX Auth Token injection
+				document.body.addEventListener('htmx:configRequest', function(evt) {
+					const token = localStorage.getItem('nexora_token');
+					if (token) {
+						evt.detail.headers['Authorization'] = 'Bearer ' + token;
+					}
+				});
 			</script>
 		</body>
 	</html>

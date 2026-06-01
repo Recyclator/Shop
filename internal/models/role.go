@@ -103,6 +103,7 @@ func AssignDefaultPermissions(db *gorm.DB) error {
 		"payments.read", "payments.process",
 		"customers.read", "customers.update",
 		"inventory.read", "inventory.update",
+		"pos.use",
 	}
 	var admin Role
 	if err := db.Where("nombre = ?", "admin").First(&admin).Error; err != nil {
@@ -125,6 +126,7 @@ func AssignDefaultPermissions(db *gorm.DB) error {
 		"customers.read", "customers.create", "customers.update",
 		"layaways.read", "layaways.create", "layaways.update",
 		"inventory.read", "inventory.update",
+		"pos.use",
 	}
 	var vendedor Role
 	if err := db.Where("nombre = ?", "vendedor").First(&vendedor).Error; err != nil {

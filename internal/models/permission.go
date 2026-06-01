@@ -85,5 +85,8 @@ func GetDefaultPermissions() []Permission {
 		// Inventario
 		{Codigo: "inventory.read", Nombre: "Ver inventario", Modulo: "inventory", Accion: "read", Descripcion: "Permite ver inventario"},
 		{Codigo: "inventory.update", Nombre: "Actualizar inventario", Modulo: "inventory", Accion: "update", Descripcion: "Permite modificar inventario"},
+
+		// POS
+		{Codigo: "pos.use", Nombre: "Usar Punto de Venta", Modulo: "pos", Accion: "use", Descripcion: "Permite usar el Punto de Venta (POS)"},
 	}
 }
