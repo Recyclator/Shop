@@ -215,6 +215,8 @@ func UpdateUser(c *fiber.Ctx) error {
 	// Recargar usuario
 	database.DB.Preload("Roles").First(&user, user.ID)
 
+	database.InvalidateUserCache(user.ID)
+
 	return utils.Success(c, fiber.StatusOK, "usuario actualizado exitosamente", user.ToResponse())
 }
 
@@ -296,6 +298,8 @@ func AssignRoles(c *fiber.Ctx) error {
 
 	// Recargar
 	database.DB.Preload("Roles.Permisos").First(&user, user.ID)
+
+	database.InvalidateUserCache(user.ID)
 
 	return utils.Success(c, fiber.StatusOK, "roles asignados exitosamente", user.ToResponse())
 }

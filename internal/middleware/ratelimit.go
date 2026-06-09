@@ -1,15 +1,17 @@
 package middleware
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"golang.org/x/time/rate"
+	"github.com/nexora/backend/internal/database"
 	"github.com/nexora/backend/internal/utils"
 )
 
-// clientLimiter mantiene un rate limiter por IP
+// clientLimiter mantiene un rate limiter por IP (para fallback en memoria)
 type clientLimiter struct {
 	limiter  *rate.Limiter
 	lastSeen time.Time
@@ -36,17 +38,34 @@ func init() {
 	}()
 }
 
-// RateLimiterMiddleware crea un middleware de rate limiting basado en IP
-// usando token bucket (golang.org/x/time/rate)
+// RateLimiterMiddleware crea un middleware de rate limiting basado en IP.
+// Utiliza Redis distribuido de forma preferente, con fallback en memoria local.
 func RateLimiterMiddleware(maxRequests int, window time.Duration) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		ip := c.IP()
 
+		// 1. Intentar con Redis (Distribuido)
+		if database.RDB != nil {
+			ctx := c.Context()
+			key := fmt.Sprintf("nexora:ratelimit:%s:%s", ip, c.Path())
+
+			val, err := database.RDB.Incr(ctx, key).Result()
+			if err == nil {
+				if val == 1 {
+					database.RDB.Expire(ctx, key, window)
+				}
+				if val > int64(maxRequests) {
+					return utils.ErrorWithCode(c, fiber.StatusTooManyRequests, "RATE_LIMIT", "demasiadas solicitudes, intenta más tarde")
+				}
+				return c.Next()
+			}
+			// Si falla la comunicación con Redis, continúa silenciosamente al fallback en memoria
+		}
+
+		// 2. Fallback en Memoria Local (Token Bucket)
 		mu.Lock()
 		client, exists := clients[ip]
 		if !exists {
-			// Configurar limiter: maxRequests por window
-			// rate.Limit es maxRequests/second equivalente
 			limiter := rate.NewLimiter(rate.Limit(float64(maxRequests)/window.Seconds()), maxRequests)
 			client = &clientLimiter{
 				limiter:  limiter,
@@ -58,7 +77,7 @@ func RateLimiterMiddleware(maxRequests int, window time.Duration) fiber.Handler 
 		mu.Unlock()
 
 		if !client.limiter.Allow() {
-			return utils.ErrorWithCode(c, fiber.StatusTooManyRequests, "RATE_LIMIT", "demasiadas solicitudes, intenta m\u00e1s tarde")
+			return utils.ErrorWithCode(c, fiber.StatusTooManyRequests, "RATE_LIMIT", "demasiadas solicitudes, intenta más tarde")
 		}
 
 		return c.Next()

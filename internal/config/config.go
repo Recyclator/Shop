@@ -20,6 +20,12 @@ type Config struct {
 	DBName     string
 	DBSSLMode  string
 
+	// Redis
+	RedisHost     string
+	RedisPort     string
+	RedisPassword string
+	RedisDB       int
+
 	// JWT
 	JWTSecret      string
 	JWTExpire      time.Duration
@@ -66,6 +72,13 @@ func Load() *Config {
 		}
 	}
 
+	redisDB := 0
+	if dbStr := os.Getenv("REDIS_DB"); dbStr != "" {
+		if db, err := strconv.Atoi(dbStr); err == nil {
+			redisDB = db
+		}
+	}
+
 	return &Config{
 		ServerPort:             getEnv("SERVER_PORT", "3000"),
 		Env:                    getEnv("ENV", "development"),
@@ -75,6 +88,10 @@ func Load() *Config {
 		DBPassword:             getEnv("DB_PASSWORD", "password"),
 		DBName:                 getEnv("DB_NAME", "nexora"),
 		DBSSLMode:              getEnv("DB_SSL_MODE", "disable"),
+		RedisHost:              getEnv("REDIS_HOST", "localhost"),
+		RedisPort:              getEnv("REDIS_PORT", "6379"),
+		RedisPassword:          getEnv("REDIS_PASSWORD", ""),
+		RedisDB:                redisDB,
 		JWTSecret:              getEnv("JWT_SECRET", "change-this-secret-in-production"),
 		JWTExpireHours:         jwtExpireHours,
 		JWTExpire:              time.Duration(jwtExpireHours) * time.Hour,

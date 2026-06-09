@@ -1,8 +1,11 @@
 package middleware
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
 	"strings"
-
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/nexora/backend/internal/database"
@@ -41,9 +44,9 @@ func AuthMiddleware() fiber.Handler {
 			return utils.ErrorWithCode(c, fiber.StatusUnauthorized, "TOKEN_REVOKED", "token revocado")
 		}
 
-		// Cargar usuario desde la base de datos
-		var user models.User
-		if result := database.DB.Preload("Roles.Permisos").First(&user, claims.UserID); result.Error != nil {
+		// Cargar usuario (desde Redis o DB)
+		user, err := getOrFetchUser(c.Context(), claims.UserID)
+		if err != nil {
 			return utils.ErrorWithCode(c, fiber.StatusUnauthorized, "USER_NOT_FOUND", "usuario no encontrado")
 		}
 
@@ -53,7 +56,7 @@ func AuthMiddleware() fiber.Handler {
 		}
 
 		// Guardar usuario en el contexto
-		c.Locals(UserKey, &user)
+		c.Locals(UserKey, user)
 		return c.Next()
 	}
 }
@@ -89,19 +92,45 @@ func OptionalAuthMiddleware() fiber.Handler {
 			return c.Next()
 		}
 
-		// Cargar usuario
-		var user models.User
-		if result := database.DB.Preload("Roles.Permisos").First(&user, claims.UserID); result.Error != nil {
+		// Cargar usuario (desde Redis o DB)
+		user, err := getOrFetchUser(c.Context(), claims.UserID)
+		if err != nil || !user.Activo {
 			return c.Next()
 		}
 
-		if !user.Activo {
-			return c.Next()
-		}
-
-		c.Locals(UserKey, &user)
+		c.Locals(UserKey, user)
 		return c.Next()
 	}
 }
 
+func getOrFetchUser(ctx context.Context, userID uint) (*models.User, error) {
+	var user models.User
+	cached := false
 
+	if database.RDB != nil {
+		key := fmt.Sprintf("nexora:user:%d", userID)
+		val, err := database.RDB.Get(ctx, key).Result()
+		if err == nil {
+			if err := json.Unmarshal([]byte(val), &user); err == nil {
+				cached = true
+			}
+		}
+	}
+
+	if !cached {
+		if result := database.DB.Preload("Roles.Permisos").First(&user, userID); result.Error != nil {
+			return nil, result.Error
+		}
+
+		if database.RDB != nil {
+			key := fmt.Sprintf("nexora:user:%d", userID)
+			data, err := json.Marshal(user)
+			if err == nil {
+				// Guardar sesión por 10 minutos
+				database.RDB.Set(ctx, key, string(data), 10*time.Minute)
+			}
+		}
+	}
+
+	return &user, nil
+}

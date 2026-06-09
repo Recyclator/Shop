@@ -276,6 +276,8 @@ func ChangePassword(c *fiber.Ctx) error {
 		return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "SAVE_ERROR", "error al guardar la contraseña")
 	}
 
+	database.InvalidateUserCache(user.ID)
+
 	return utils.SuccessMessage(c, fiber.StatusOK, "contraseña cambiada exitosamente")
 }
 
@@ -352,6 +354,8 @@ func UpdateProfile(c *fiber.Ctx) error {
 	// Recargar usuario
 	database.DB.Preload("Roles").First(&user, user.ID)
 
+	database.InvalidateUserCache(user.ID)
+
 	return utils.SuccessData(c, fiber.StatusOK, fiber.Map{
 		"message": "perfil actualizado exitosamente",
 		"user":    user,
@@ -380,6 +384,8 @@ func UpdateTheme(c *fiber.Ctx) error {
 	if result := database.DB.Model(user).Update("theme", input.Theme); result.Error != nil {
 		return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "SAVE_ERROR", "error al actualizar el tema")
 	}
+
+	database.InvalidateUserCache(user.ID)
 
 	return utils.SuccessMessage(c, fiber.StatusOK, "tema actualizado exitosamente")
 }

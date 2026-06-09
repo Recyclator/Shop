@@ -30,6 +30,13 @@ func main() {
 		log.Fatalf("Error conectando a la base de datos: %v", err)
 	}
 
+	// Conectar a Redis (opcional en desarrollo, log de advertencia si falla)
+	if err := database.ConnectRedis(cfg); err != nil {
+		log.Printf("⚠️  Advertencia: No se pudo conectar a Redis: %v. Caching y rate limiting distribuido desactivados.", err)
+	} else {
+		defer database.CloseRedis()
+	}
+
 	// Ejecutar migraciones
 	if err := database.Migrate(); err != nil {
 		log.Fatalf("Error en migraciones: %v", err)
