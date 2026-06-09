@@ -8,7 +8,7 @@ templ ProductsPage() {
 		<button class="btn btn-primary" onclick="openModal()"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Nuevo Producto</button>
 	</div>
 	<div class="toolbar">
-		<input type="text" class="form-input-tw" placeholder="Buscar por nombre, SKU..." id="search-filter">
+		<input type="text" class="form-input" placeholder="Buscar por nombre, SKU..." id="search-filter">
 		<select id="status-filter" class="form-input"><option value="">Todos</option><option value="activo">Activo</option><option value="inactivo">Inactivo</option></select>
 		<select id="category-filter" class="form-input"><option value="">Todas las categorías</option></select>
 		<button class="btn btn-secondary" onclick="loadProducts()">Filtrar</button>
@@ -55,12 +55,19 @@ templ ProductsPage() {
 			try { const res = await fetch(`${API_URL}/products/${id}`, { headers: { 'Authorization': 'Bearer ' + token } }); if (res.ok) { const p = (await res.json()).data; document.getElementById('modal-title').textContent = 'Editar Producto'; document.getElementById('product-id').value = p.id; document.getElementById('prod-sku').value = p.sku; document.getElementById('prod-nombre').value = p.nombre; document.getElementById('prod-precio').value = p.precio; document.getElementById('prod-stock').value = p.stock; loadCategoriesForSelect(); setTimeout(() => { if (p.categoria) document.getElementById('prod-categoria').value = p.categoria.id; }, 500); document.getElementById('product-modal').classList.add('active'); } } catch (e) {}
 		}
 		async function saveProduct() {
+			if (!FormValidator.validateForm('product-form')) return;
 			const id = document.getElementById('product-id').value;
 			const body = { sku: document.getElementById('prod-sku').value, nombre: document.getElementById('prod-nombre').value, precio: parseFloat(document.getElementById('prod-precio').value), stock: parseInt(document.getElementById('prod-stock').value) || 0, categoria_id: document.getElementById('prod-categoria').value ? parseInt(document.getElementById('prod-categoria').value) : null };
-			if (!body.sku || !body.nombre || !body.precio) { Toast.warning('Campos requeridos', 'SKU, nombre y precio son obligatorios'); return; }
 			try { const res = await fetch(id ? `${API_URL}/products/${id}` : `${API_URL}/products`, { method: id ? 'PUT' : 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); const data = await res.json(); if (res.ok) { Toast.success('Éxito', id ? 'Producto actualizado' : 'Producto creado'); closeModal(); loadProducts(currentPage); } else { Toast.error('Error', data.error?.message || 'Error'); } } catch (e) { Toast.error('Error', 'Error de conexión'); }
 		}
-		async function deleteProduct(id) { if (!confirm('¿Eliminar este producto?')) return; try { const res = await fetch(`${API_URL}/products/${id}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } }); if (res.ok) { Toast.success('Éxito', 'Producto eliminado'); loadProducts(currentPage); } else { Toast.error('Error', (await res.json()).error?.message || 'Error'); } } catch (e) {} }
+		async function deleteProduct(id) {
+			if (!(await window.confirmDelete({ title: '¿Eliminar producto?', message: '¿Estás seguro de que deseas eliminar este producto?' }))) return;
+			try {
+				const res = await fetch(`${API_URL}/products/${id}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } });
+				if (res.ok) { Toast.success('Éxito', 'Producto eliminado'); loadProducts(currentPage); }
+				else { Toast.error('Error', (await res.json()).error?.message || 'Error'); }
+			} catch (e) {}
+		}
 		document.getElementById('search-filter').addEventListener('keypress', (e) => { if (e.key === 'Enter') { currentSearch = e.target.value; loadProducts(1); } });
 		document.getElementById('status-filter').addEventListener('change', (e) => { currentStatus = e.target.value; loadProducts(1); });
 		loadProducts(1);

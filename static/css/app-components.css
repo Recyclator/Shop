@@ -297,3 +297,40 @@
 [x-cloak] {
     display: none !important;
 }
+
+/* ========================================
+   FORM VALIDATION STYLES
+   ======================================== */
+.form-input.is-invalid,
+.form-select.is-invalid,
+.form-input-tw.is-invalid,
+textarea.form-input.is-invalid {
+    border-color: var(--danger) !important;
+    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.15) !important;
+}
+
+.form-input.is-valid,
+.form-select.is-valid,
+.form-input-tw.is-valid,
+textarea.form-input.is-valid {
+    border-color: var(--success) !important;
+}
+
+.validation-error {
+    color: var(--danger);
+    font-size: 12px;
+    margin-top: 4px;
+    display: block;
+    animation: validationFadeIn 0.2s ease-in-out;
+}
+
+@keyframes validationFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

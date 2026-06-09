@@ -20,7 +20,7 @@ templ UsersPage(data UsersData) {
 	</div>
 
 	<div class="toolbar">
-		<input type="text" class="form-input-tw" placeholder="Buscar por nombre, email..." id="search-filter">
+		<input type="text" class="form-input" placeholder="Buscar por nombre, email..." id="search-filter">
 		<select id="role-filter" class="form-input"><option value="">Todos los roles</option></select>
 		<select id="status-filter" class="form-input"><option value="">Todos los estados</option><option value="true">Activo</option><option value="false">Inactivo</option></select>
 		<button class="btn btn-secondary" onclick="loadUsers()">Filtrar</button>
@@ -165,6 +165,7 @@ templ UsersPage(data UsersData) {
 			document.getElementById('user-form').reset();
 			document.getElementById('user-id').value = '';
 			document.getElementById('password-group').style.display = 'block';
+			document.getElementById('password').setAttribute('required', '');
 			document.getElementById('activo-group').style.display = 'none';
 			renderRolesCheckboxes();
 			document.getElementById('user-modal').classList.add('active');
@@ -189,6 +190,7 @@ templ UsersPage(data UsersData) {
 					document.getElementById('email').value = u.email;
 					document.getElementById('telefono').value = u.telefono || '';
 					document.getElementById('password-group').style.display = 'none';
+					document.getElementById('password').removeAttribute('required');
 					document.getElementById('activo-group').style.display = 'block';
 					document.getElementById('activo').value = u.activo.toString();
 					renderRolesCheckboxes();
@@ -199,6 +201,7 @@ templ UsersPage(data UsersData) {
 		}
 
 		async function saveUser() {
+			if (!FormValidator.validateForm('user-form')) return;
 			const id = document.getElementById('user-id').value;
 			const body = {
 				nombre: document.getElementById('nombre').value.trim(),
@@ -208,8 +211,6 @@ templ UsersPage(data UsersData) {
 				role_ids: Array.from(document.querySelectorAll('#roles-list input:checked')).map(cb => parseInt(cb.value))
 			};
 			const password = document.getElementById('password').value;
-			if (!body.nombre || !body.email) { Toast.warning('Campos requeridos', 'Nombre y email son obligatorios'); return; }
-			if (!id && !password) { Toast.warning('Contraseña requerida', 'La contraseña es obligatoria para nuevos usuarios'); return; }
 			if (password) body.password = password;
 			try {
 				const res = await fetch(id ? `${API_URL}/users/${id}` : `${API_URL}/users`, {
@@ -224,7 +225,7 @@ templ UsersPage(data UsersData) {
 		}
 
 		async function deleteUser(id) {
-			if (!confirm('¿Estás seguro de eliminar este usuario?')) return;
+			if (!(await window.confirmDelete({ title: '¿Eliminar usuario?', message: '¿Estás seguro de que deseas eliminar este usuario?' }))) return;
 			try {
 				const res = await fetch(`${API_URL}/users/${id}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } });
 				const data = await res.json();

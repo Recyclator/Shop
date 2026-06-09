@@ -8,6 +8,7 @@ templ AuthPage() {
 			<meta name="viewport" content="width=device-width, initial-scale=1.0">
 			<title>Nexora — Login</title>
 			<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+			<script src="/static/js/validator.js" defer></script>
 			<style>
 				* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 				:root {
@@ -207,6 +208,26 @@ templ AuthPage() {
 					.card { padding: 20px 16px; }
 					.title { font-size: 16px; }
 				}
+				
+				/* Validation Styles */
+				.form-group input.is-invalid {
+					border-color: var(--danger) !important;
+					box-shadow: 0 0 0 3px rgba(239,68,68,0.15) !important;
+				}
+				.form-group input.is-valid {
+					border-color: var(--success) !important;
+				}
+				.validation-error {
+					color: var(--danger);
+					font-size: 12px;
+					margin-top: 4px;
+					display: block;
+					animation: validationFadeIn 0.2s ease-in-out;
+				}
+				@keyframes validationFadeIn {
+					from { opacity: 0; transform: translateY(-4px); }
+					to { opacity: 1; transform: translateY(0); }
+				}
 			</style>
 		</head>
 		<body>
@@ -255,7 +276,7 @@ templ AuthPage() {
 						</div>
 						<div class="form-group">
 							<label>Confirmar contraseña</label>
-							<input type="password" id="reg-confirm" placeholder="••••••••" required>
+							<input type="password" id="reg-confirm" placeholder="••••••••" required data-match="reg-password">
 						</div>
 						<button type="submit" class="btn" id="reg-btn">Crear cuenta</button>
 					</form>
@@ -314,6 +335,7 @@ templ AuthPage() {
 				
 				document.getElementById('login-form').addEventListener('submit', async (e) => {
 					e.preventDefault();
+					if (!FormValidator.validateForm('login-form')) return;
 					const btn = document.getElementById('login-btn');
 					const email = document.getElementById('login-email').value;
 					const password = document.getElementById('login-password').value;
@@ -348,16 +370,12 @@ templ AuthPage() {
 				
 				document.getElementById('register-form').addEventListener('submit', async (e) => {
 					e.preventDefault();
+					if (!FormValidator.validateForm('register-form')) return;
 					const btn = document.getElementById('reg-btn');
 					const nombre = document.getElementById('reg-nombre').value;
 					const email = document.getElementById('reg-email').value;
 					const password = document.getElementById('reg-password').value;
 					const confirm = document.getElementById('reg-confirm').value;
-					
-					if (password !== confirm) {
-						showAlert('error', 'Error', 'Las contraseñas no coinciden');
-						return;
-					}
 					
 					btn.disabled = true;
 					btn.innerHTML = '<span class="spinner"></span>';

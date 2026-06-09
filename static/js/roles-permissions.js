@@ -20,10 +20,19 @@ function renderPermChecks(){
 }
 async function editRole(id){try{const r=await fetch(`${API_URL}/roles/${id}`,{headers:{'Authorization':'Bearer '+token}});if(r.ok){const d=(await r.json()).data;document.getElementById('role-modal-title').textContent='Editar Rol';document.getElementById('role-id').value=d.id;document.getElementById('role-nombre').value=d.nombre;document.getElementById('role-nombre').disabled=true;document.getElementById('role-display').value=d.display_name;document.getElementById('role-desc').value=d.descripcion||'';document.getElementById('role-level').value=d.nivel;renderPermChecks();if(d.permisos)d.permisos.forEach(p=>{const cb=document.querySelector(`input[data-perm="${p.codigo}"]`);if(cb)cb.checked=true;});document.getElementById('role-modal').classList.add('active');}}catch(e){Toast.error('Error','No se pudo cargar');}}
 async function saveRole(){
+    if (!FormValidator.validateForm('role-form')) return;
     const id=document.getElementById('role-id').value;
     const b={nombre:document.getElementById('role-nombre').value,display_name:document.getElementById('role-display').value,descripcion:document.getElementById('role-desc').value,nivel:parseInt(document.getElementById('role-level').value),permiso_ids:Array.from(document.querySelectorAll('#permissions-list input:checked')).map(c=>parseInt(c.value))};
-    if(!b.nombre||!b.display_name){Toast.warning('Campos requeridos','Nombre y nombre visible obligatorios');return;}
     try{const res=await fetch(id?`${API_URL}/roles/${id}`:`${API_URL}/roles`,{method:id?'PUT':'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(b)});const d=await res.json();if(res.ok){Toast.success('Éxito',id?'Rol actualizado':'Rol creado');closeRoleModal();loadRoles();}else{Toast.error('Error',d.error?.message||'Error');}}catch(e){Toast.error('Error','Error de conexión');}
 }
 async function deleteRole(id){if(!confirm('¿Eliminar este rol?'))return;try{const res=await fetch(`${API_URL}/roles/${id}`,{method:'DELETE',headers:{'Authorization':'Bearer '+token}});if(res.ok){Toast.success('Éxito','Rol eliminado');loadRoles();}else{Toast.error('Error',(await res.json()).error?.message||'Error');}}catch(e){}}
-document.addEventListener('DOMContentLoaded',()=>{loadRoles();loadPermissions();});
+function initRolesPermissions() {
+    loadRoles();
+    loadPermissions();
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initRolesPermissions);
+} else {
+    initRolesPermissions();
+}

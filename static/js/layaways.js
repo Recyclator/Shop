@@ -35,8 +35,8 @@ async function loadLayProducts() { try { const res = await fetch(`${API_URL}/pro
 function openCreateModal() { loadLayCustomers(); loadLayProducts(); document.getElementById('layaway-form').reset(); document.getElementById('layaway-modal').classList.add('active'); }
 function closeModal() { document.getElementById('layaway-modal').classList.remove('active'); }
 async function saveLayaway() {
+    if (!FormValidator.validateForm('layaway-form')) return;
     const b = { customer_id:parseInt(document.getElementById('lay-customer').value), product_id:parseInt(document.getElementById('lay-product').value), cantidad:parseInt(document.getElementById('lay-cantidad').value), abono_inicial:parseFloat(document.getElementById('lay-abono').value) };
-    if(!b.customer_id||!b.product_id){Toast.warning('Campos requeridos','Selecciona cliente y producto');return;}
     try{const res=await fetch(`${API_URL}/layaways`,{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(b)});const d=await res.json();if(res.ok){Toast.success('Éxito','Separado creado');closeModal();loadLayaways(layCurrentPage);}else{Toast.error('Error',d.error?.message||'Error');}}catch(e){Toast.error('Error','Error de conexión');}
 }
 async function openPaymentsModal(id) {
@@ -55,14 +55,26 @@ async function openPaymentsModal(id) {
 }
 function closePaymentsModal() { document.getElementById('payments-modal').classList.remove('active'); }
 async function addPayment() {
+    if (!FormValidator.validateForm('payment-form')) return;
     const m = parseFloat(document.getElementById('payment-amount').value);
-    if(!m||m<=0){Toast.warning('Monto inválido','Ingresa un monto mayor a 0');return;}
     try{const res=await fetch(`${API_URL}/layaways/${layCurrentId}/payments`,{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({monto:m})});const d=await res.json();if(res.ok){Toast.success('Éxito',d.message||'Abono registrado');openPaymentsModal(layCurrentId);loadLayaways(layCurrentPage);}else{Toast.error('Error',d.error?.message||'Error');}}catch(e){Toast.error('Error','Error de conexión');}
 }
 async function cancelLayaway(id) { if(!confirm('¿Cancelar este separado?'))return; try{const res=await fetch(`${API_URL}/layaways/${id}/cancel`,{method:'POST',headers:{'Authorization':'Bearer '+token}});if(res.ok){Toast.success('Éxito','Separado cancelado');loadLayaways(layCurrentPage);}else{Toast.error('Error',(await res.json()).error?.message||'Error');}}catch(e){} }
 async function checkExpired() { try{const res=await fetch(`${API_URL}/layaways/check-expired`,{method:'POST',headers:{'Authorization':'Bearer '+token}});if(res.ok){const d=await res.json();Toast.info('Verificación',`${d.data?.separados_vencidos||0} vencidos`);loadLayaways(layCurrentPage);}}catch(e){} }
-document.addEventListener('DOMContentLoaded',()=>{
-    document.getElementById('search-filter').addEventListener('keypress',e=>{if(e.key==='Enter'){layCurrentSearch=e.target.value;loadLayaways(1);}});
-    document.getElementById('status-filter').addEventListener('change',e=>{layCurrentStatus=e.target.value;loadLayaways(1);});
+function initLayaways() {
+    const searchFilter = document.getElementById('search-filter');
+    const statusFilter = document.getElementById('status-filter');
+    if (searchFilter) {
+        searchFilter.addEventListener('keypress', e => { if (e.key === 'Enter') { layCurrentSearch = e.target.value; loadLayaways(1); } });
+    }
+    if (statusFilter) {
+        statusFilter.addEventListener('change', e => { layCurrentStatus = e.target.value; loadLayaways(1); });
+    }
     loadLayaways(1);
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initLayaways);
+} else {
+    initLayaways();
+}

@@ -21,7 +21,7 @@ templ CustomersPage(data CustomersData) {
 	</div>
 
 	<div class="toolbar">
-		<input type="text" class="form-input-tw" placeholder="Buscar por nombre, cédula, email..." id="search-filter">
+		<input type="text" class="form-input" placeholder="Buscar por nombre, cédula, email..." id="search-filter">
 		<button class="btn btn-secondary" onclick="loadCustomers()">Buscar</button>
 	</div>
 
@@ -163,6 +163,7 @@ templ CustomersPage(data CustomersData) {
 		}
 
 		async function saveCustomer() {
+			if (!FormValidator.validateForm('customer-form')) return;
 			const id = document.getElementById('customer-id').value;
 			const body = {
 				cedula: document.getElementById('cedula').value.trim(),
@@ -170,9 +171,6 @@ templ CustomersPage(data CustomersData) {
 				email: document.getElementById('email').value.trim(),
 				telefono: document.getElementById('telefono').value.trim()
 			};
-			if (!body.cedula || !body.nombre || !body.email || !body.telefono) {
-				Toast.warning('Campos requeridos', 'Todos los campos son obligatorios'); return;
-			}
 			try {
 				const res = await fetch(id ? `${API_URL}/customers/${id}` : `${API_URL}/customers`, {
 					method: id ? 'PUT' : 'POST',
@@ -186,7 +184,7 @@ templ CustomersPage(data CustomersData) {
 		}
 
 		async function deleteCustomer(id) {
-			if (!confirm('¿Estás seguro de eliminar este cliente?')) return;
+			if (!(await window.confirmDelete({ title: '¿Eliminar cliente?', message: '¿Estás seguro de que deseas eliminar este cliente?' }))) return;
 			try {
 				const res = await fetch(`${API_URL}/customers/${id}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } });
 				const data = await res.json();

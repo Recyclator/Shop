@@ -8,12 +8,12 @@ templ POSPage() {
 		<div class="pos-tabs" style="display:flex;gap:8px;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:8px;">
 			<button class="btn" @click="view = 'products'" :class="view === 'products' ? 'btn-primary' : 'btn-secondary'">Productos</button>
 			<button class="btn" @click="view = 'cart'" :class="view === 'cart' ? 'btn-primary' : 'btn-secondary'">Carrito <span id="cart-count">(0)</span></button>
-			<button class="btn" @click="view = 'sales'" :class="view === 'sales' ? 'btn-primary' : 'btn-secondary'">Historial</button>
+			<button class="btn" @click="view = 'sales'; loadPOSSales()" :class="view === 'sales' ? 'btn-primary' : 'btn-secondary'">Historial</button>
 		</div>
 
 		<!-- Products View -->
 		<div x-show="view === 'products'">
-			<div class="toolbar"><input type="text" class="form-input-tw" placeholder="Buscar productos..." id="pos-search" @input="searchPOSProducts()"><input type="text" class="form-input-tw" placeholder="Código de barras..." id="pos-barcode" @keyup.enter="scanBarcode()"></div>
+			<div class="toolbar"><input type="text" class="form-input" placeholder="Buscar productos..." id="pos-search" @input="searchPOSProducts()"><input type="text" class="form-input" placeholder="Código de barras..." id="pos-barcode" @keyup.enter="scanBarcode()"></div>
 			<div id="pos-products-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;">
 				<div style="text-align:center;padding:40px;color:var(--text-mut);grid-column:1/-1;">Cargando productos...</div>
 			</div>

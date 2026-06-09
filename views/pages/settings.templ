@@ -23,19 +23,21 @@ templ SettingsPage() {
 					<div style="width:36px;height:36px;background:var(--accent-dim);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--accent);"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div>
 					<div><div style="font-weight:600;">Empresa</div><div style="font-size:12px;color:var(--text-mut);">Información legal</div></div>
 				</div>
-				<div class="form-row">
-					<div class="form-group"><label class="form-label">Nombre</label><input type="text" class="form-input" id="company-name" value="Nexora SAS"></div>
+				<form id="company-form" onsubmit="event.preventDefault(); saveCompany();">
 					<div class="form-row">
-						<div class="form-group"><label class="form-label">NIT</label><input type="text" class="form-input" id="company-nit" value="1234567890"></div>
-						<div class="form-group"><label class="form-label">DV</label><input type="text" class="form-input" id="company-dv" value="1"></div>
+						<div class="form-group"><label class="form-label">Nombre *</label><input type="text" class="form-input" id="company-name" value="Nexora SAS" required></div>
+						<div class="form-row">
+							<div class="form-group"><label class="form-label">NIT *</label><input type="text" class="form-input" id="company-nit" value="1234567890" required></div>
+							<div class="form-group"><label class="form-label">DV *</label><input type="text" class="form-input" id="company-dv" value="1" required></div>
+						</div>
 					</div>
-				</div>
-				<div class="form-group"><label class="form-label">Dirección</label><input type="text" class="form-input" id="company-address" value="Carrera 10 # 20-30"></div>
-				<div class="form-row">
-					<div class="form-group"><label class="form-label">Ciudad</label><input type="text" class="form-input" id="company-city" value="Bogotá"></div>
-					<div class="form-group"><label class="form-label">Teléfono</label><input type="text" class="form-input" id="company-phone" value="+57 1 234 5678"></div>
-				</div>
-				<button class="btn btn-primary" onclick="saveCompany()">Guardar</button>
+					<div class="form-group"><label class="form-label">Dirección *</label><input type="text" class="form-input" id="company-address" value="Carrera 10 # 20-30" required></div>
+					<div class="form-row">
+						<div class="form-group"><label class="form-label">Ciudad *</label><input type="text" class="form-input" id="company-city" value="Bogotá" required></div>
+						<div class="form-group"><label class="form-label">Teléfono *</label><input type="text" class="form-input" id="company-phone" value="+57 1 234 5678" required></div>
+					</div>
+				</form>
+				<button class="btn btn-primary" onclick="saveCompany()" style="margin-top:16px;">Guardar</button>
 			</div>
 		</div>
 
@@ -54,7 +56,10 @@ templ SettingsPage() {
 
 	<script src="/static/js/toast.js"></script>
 	<script>
-		function saveCompany() { Toast.success('Éxito', 'Configuración guardada'); }
+		function saveCompany() {
+			if (!FormValidator.validateForm('company-form')) return;
+			Toast.success('Éxito', 'Configuración guardada');
+		}
 		async function loadStats() {
 			try {
 				const res = await fetch(`${API_URL}/users?limit=1`, { headers: { 'Authorization': 'Bearer ' + token } });

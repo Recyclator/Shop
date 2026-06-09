@@ -17,4 +17,12 @@ function renderCart(){document.getElementById('cart-count').textContent=`(${cart
 async function completePOSSale(m){if(!cart.length){Toast.warning('Vacío','Agrega productos');return;}const items=cart.map(c=>({producto_id:c.id,cantidad:c.qty,precio_unitario:c.precio})),t=cart.reduce((s,c)=>s+(c.precio||0)*c.qty,0);try{const r=await fetch(`${API_URL}/orders/pos`,{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({items,metodo_pago:m,total:t})});if(r.ok){Toast.success('Venta','$'+t.toLocaleString('es-CO'));cart=[];renderCart();}else{Toast.error('Error',(await r.json()).error?.message||'Error');}}catch(e){Toast.error('Error','Error');}}
 async function loadPOSSales(){try{const r=await fetch(`${API_URL}/orders?page=1&limit=20`,{headers:{'Authorization':'Bearer '+token}});if(r.ok){const o=(await r.json()).data||[];document.getElementById('sales-tbody').innerHTML=o.length===0?'<tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-mut)">Sin ventas</tr>':o.map(x=>`<tr><td class="mono">#${x.id}</td><td>${new Date(x.created_at).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'})}</td><td>${x.items?.length||0} items</td><td class="mono">$${(x.total||0).toLocaleString('es-CO')}</td><td>${x.metodo_pago||'-'}</td></tr>`).join('');}}catch(e){}}
 async function scanBarcode(){const c=document.getElementById('pos-barcode').value;if(!c)return;try{const r=await fetch(`${API_URL}/products/barcode/${c}`,{headers:{'Authorization':'Bearer '+token}});if(r.ok){const p=(await r.json()).data;addToCart(p.id);document.getElementById('pos-barcode').value='';}else{Toast.error('Error','No encontrado');}}catch(e){}}
-document.addEventListener('DOMContentLoaded',()=>{loadPOSProducts();});
+function initPOS() {
+    loadPOSProducts();
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initPOS);
+} else {
+    initPOS();
+}

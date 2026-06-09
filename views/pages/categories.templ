@@ -92,9 +92,9 @@ templ CategoriesPage() {
 			} catch (e) { Toast.error('Error', 'No se pudo cargar la categoría'); }
 		}
 		async function saveCategory() {
+			if (!FormValidator.validateForm('category-form')) return;
 			const id = document.getElementById('category-id').value;
 			const payload = { nombre: document.getElementById('category-nombre').value, descripcion: document.getElementById('category-descripcion').value, padre_id: document.getElementById('category-padre').value ? parseInt(document.getElementById('category-padre').value) : null, orden: parseInt(document.getElementById('category-orden').value) || 0, activa: document.getElementById('category-activa').value === 'true', mostrar_menu: document.getElementById('category-mostrar-menu').value === 'true' };
-			if (!payload.nombre) { Toast.warning('Campos requeridos', 'El nombre es requerido'); return; }
 			try {
 				const res = await fetch(id ? `${API_URL}/categories/${id}` : `${API_URL}/categories`, { method: id ? 'PUT' : 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
 				const data = await res.json();
@@ -102,7 +102,14 @@ templ CategoriesPage() {
 				else { Toast.error('Error', data.error?.message || 'Error al guardar'); }
 			} catch (e) { Toast.error('Error', 'Error de conexión'); }
 		}
-		async function deleteCategory(id) { if (!confirm('¿Eliminar esta categoría?')) return; try { const res = await fetch(`${API_URL}/categories/${id}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } }); if (res.ok) { Toast.success('Éxito', 'Categoría eliminada'); loadCategories(); } else { Toast.error('Error', (await res.json()).error?.message || 'Error al eliminar'); } } catch (e) { Toast.error('Error', 'Error de conexión'); } }
+		async function deleteCategory(id) {
+			if (!(await window.confirmDelete({ title: '¿Eliminar categoría?', message: '¿Estás seguro de que deseas eliminar esta categoría?' }))) return;
+			try {
+				const res = await fetch(`${API_URL}/categories/${id}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } });
+				if (res.ok) { Toast.success('Éxito', 'Categoría eliminada'); loadCategories(); }
+				else { Toast.error('Error', (await res.json()).error?.message || 'Error al eliminar'); }
+			} catch (e) { Toast.error('Error', 'Error de conexión'); }
+		}
 		loadCategories();
 	</script>
 }
