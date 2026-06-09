@@ -9,6 +9,7 @@ import (
 	"github.com/nexora/backend/internal/middleware"
 	"github.com/nexora/backend/internal/models"
 	"github.com/nexora/backend/internal/utils"
+	"gorm.io/gorm/clause"
 )
 
 // GetProducts obtiene la lista de productos con paginación y filtros
@@ -500,7 +501,7 @@ func AdjustProductStock(c *fiber.Ctx) error {
 	tx := database.DB.Begin()
 
 	var product models.Product
-	if result := tx.First(&product, id); result.Error != nil {
+	if result := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&product, id); result.Error != nil {
 		tx.Rollback()
 		return utils.ErrorWithCode(c, fiber.StatusNotFound, "NOT_FOUND", "producto no encontrado")
 	}
@@ -517,7 +518,7 @@ func AdjustProductStock(c *fiber.Ctx) error {
 
 	if input.VariantID != nil {
 		variant = &models.ProductVariant{}
-		if result := tx.First(variant, *input.VariantID); result.Error != nil {
+		if result := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(variant, *input.VariantID); result.Error != nil {
 			tx.Rollback()
 			return utils.ErrorWithCode(c, fiber.StatusNotFound, "NOT_FOUND", "variante no encontrada")
 		}

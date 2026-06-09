@@ -9,6 +9,7 @@ import (
 	"github.com/nexora/backend/internal/middleware"
 	"github.com/nexora/backend/internal/models"
 	"github.com/nexora/backend/internal/utils"
+	"gorm.io/gorm/clause"
 )
 
 // GetOrders obtiene la lista de pedidos
@@ -115,7 +116,7 @@ func CreateOrder(c *fiber.Ctx) error {
 
 	for i, item := range input.Items {
 		var product models.Product
-		if result := tx.First(&product, item.ProductoID); result.Error != nil {
+		if result := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&product, item.ProductoID); result.Error != nil {
 			tx.Rollback()
 			return utils.ErrorWithCode(c, fiber.StatusBadRequest, "INVALID_PRODUCT", fmt.Sprintf("producto %d no encontrado", item.ProductoID))
 		}
@@ -248,9 +249,12 @@ func QuickPOSSale(c *fiber.Ctx) error {
 	impuestoPorcentaje := 19.0
 	items := make([]models.OrderItem, len(input.Items))
 
+	tx := database.DB.Begin()
+
 	for i, item := range input.Items {
 		var product models.Product
-		if result := database.DB.First(&product, item.ProductoID); result.Error != nil {
+		if result := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&product, item.ProductoID); result.Error != nil {
+			tx.Rollback()
 			return utils.ErrorWithCode(c, fiber.StatusBadRequest, "INVALID_PRODUCT", fmt.Sprintf("producto %d no encontrado", item.ProductoID))
 		}
 
@@ -261,10 +265,12 @@ func QuickPOSSale(c *fiber.Ctx) error {
 
 		if item.VariantID != nil {
 			variant = new(models.ProductVariant)
-			if result := database.DB.Preload("Atributos").First(variant, *item.VariantID); result.Error != nil {
+			if result := tx.Preload("Atributos").Clauses(clause.Locking{Strength: "UPDATE"}).First(variant, *item.VariantID); result.Error != nil {
+				tx.Rollback()
 				return utils.ErrorWithCode(c, fiber.StatusBadRequest, "INVALID_VARIANT", fmt.Sprintf("variante %d no encontrada", *item.VariantID))
 			}
 			if variant.ProductoID != item.ProductoID {
+				tx.Rollback()
 				return utils.ErrorWithCode(c, fiber.StatusBadRequest, "VARIANT_MISMATCH", "la variante no pertenece al producto")
 			}
 			if variant.PrecioOverride > 0 {
@@ -285,6 +291,7 @@ func QuickPOSSale(c *fiber.Ctx) error {
 		}
 
 		if product.ControlaInventario && stockActual < item.Cantidad && !product.PermiteStockNegativo {
+			tx.Rollback()
 			productoNombre := product.Nombre
 			if variant != nil {
 				productoNombre = variant.Nombre
@@ -314,12 +321,18 @@ func QuickPOSSale(c *fiber.Ctx) error {
 			if variant != nil {
 				stockAnterior := variant.Stock
 				variant.Stock -= item.Cantidad
-				database.DB.Save(variant)
+				if err := tx.Save(variant).Error; err != nil {
+					tx.Rollback()
+					return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "STOCK_ERROR", "error al actualizar stock de variante")
+				}
 				registrarMovimientoStock(item.ProductoID, variant.ID, currentUser.ID, models.StockVenta, -item.Cantidad, stockAnterior, variant.Stock, "Venta POS")
 			} else {
 				stockAnterior := product.Stock
 				product.Stock -= item.Cantidad
-				database.DB.Save(&product)
+				if err := tx.Save(&product).Error; err != nil {
+					tx.Rollback()
+					return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "STOCK_ERROR", "error al actualizar stock de producto")
+				}
 				registrarMovimientoStock(item.ProductoID, 0, currentUser.ID, models.StockVenta, -item.Cantidad, stockAnterior, product.Stock, "Venta POS")
 			}
 		}
@@ -343,8 +356,13 @@ func QuickPOSSale(c *fiber.Ctx) error {
 		Items:              items,
 	}
 
-	if result := database.DB.Create(&order); result.Error != nil {
+	if result := tx.Create(&order); result.Error != nil {
+		tx.Rollback()
 		return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "CREATE_ERROR", "error al crear venta")
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "DB_ERROR", "error al guardar venta")
 	}
 
 	cambio := input.Recibido - total
@@ -440,16 +458,29 @@ func CancelOrder(c *fiber.Ctx) error {
 	tx := database.DB.Begin()
 	for _, item := range order.Items {
 		var product models.Product
-		if result := tx.First(&product, item.ProductoID); result.Error == nil && product.ControlaInventario {
-			if err := tx.Model(&product).Update("stock", product.Stock+item.Cantidad).Error; err != nil {
-				tx.Rollback()
-				return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "STOCK_ERROR", "error al restaurar stock")
+		if result := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&product, item.ProductoID); result.Error == nil && product.ControlaInventario {
+			if item.VarianteID != nil && *item.VarianteID > 0 {
+				var variant models.ProductVariant
+				if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&variant, *item.VarianteID).Error; err == nil {
+					if err := tx.Model(&variant).Update("stock", variant.Stock+item.Cantidad).Error; err != nil {
+						tx.Rollback()
+						return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "STOCK_ERROR", "error al restaurar stock de variante")
+					}
+				}
+			} else {
+				if err := tx.Model(&product).Update("stock", product.Stock+item.Cantidad).Error; err != nil {
+					tx.Rollback()
+					return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "STOCK_ERROR", "error al restaurar stock")
+				}
 			}
 		}
 	}
 
 	order.Estado = "cancelado"
-	tx.Save(&order)
+	if err := tx.Save(&order).Error; err != nil {
+		tx.Rollback()
+		return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "UPDATE_ERROR", "error al cancelar el pedido")
+	}
 	tx.Commit()
 
 	return utils.Success(c, fiber.StatusOK, "pedido cancelado exitosamente", order.ToResponse())

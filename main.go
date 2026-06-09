@@ -20,6 +20,11 @@ func main() {
 	// Cargar configuración
 	cfg := config.Load()
 
+	// Inicializar Casbin
+	if err := customMiddleware.InitCasbin(cfg.CasbinModelPath, cfg.CasbinPolicyPath); err != nil {
+		log.Fatalf("Error inicializando Casbin: %v", err)
+	}
+
 	// Conectar a la base de datos
 	if err := database.Connect(cfg); err != nil {
 		log.Fatalf("Error conectando a la base de datos: %v", err)
