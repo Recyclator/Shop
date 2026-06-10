@@ -245,7 +245,12 @@ function setupBarcodeScanner() {
     window.addEventListener("keydown", async (e) => {
         if (e.key === "F12") {
             e.preventDefault();
-            openCheckoutModal();
+            const modal = document.getElementById('checkout-modal');
+            if (modal && modal.style.display === 'flex') {
+                submitPOSSale();
+            } else {
+                openCheckoutModal();
+            }
             return;
         }
 
@@ -356,6 +361,46 @@ function setupKeyboardShortcuts() {
             closeCheckoutModal();
             closeNewCustomerModal();
         }
+
+        // Shortcut modifiers for checkout modal
+        const checkoutModal = document.getElementById('checkout-modal');
+        if (checkoutModal && checkoutModal.style.display === 'flex') {
+            if (e.altKey) {
+                const key = e.key.toLowerCase();
+                if (key === 'e') {
+                    e.preventDefault();
+                    selectPayMethod('efectivo');
+                } else if (key === 't') {
+                    e.preventDefault();
+                    selectPayMethod('tarjeta');
+                } else if (key === 'n') {
+                    e.preventDefault();
+                    selectPayMethod('transferencia');
+                } else if (key === 'x') {
+                    e.preventDefault();
+                    setExactCash();
+                }
+            }
+        }
+
+        // Ctrl+Enter form submission
+        if (e.ctrlKey && e.key === "Enter") {
+            const custModal = document.getElementById('customer-modal');
+            if (custModal && custModal.style.display === 'flex') {
+                e.preventDefault();
+                const form = document.getElementById('new-customer-form');
+                if (typeof form.requestSubmit === 'function') {
+                    form.requestSubmit();
+                } else {
+                    if (form.reportValidity()) {
+                        submitNewCustomer(new Event('submit'));
+                    }
+                }
+            } else if (checkoutModal && checkoutModal.style.display === 'flex') {
+                e.preventDefault();
+                submitPOSSale();
+            }
+        }
     });
 }
 
@@ -378,14 +423,23 @@ async function searchCustomers() {
             const list = res.data || [];
 
             if (list.length === 0) {
-                resultsDiv.innerHTML = '<div style="padding:10px; font-size:12px; color:var(--text-mut); text-align:center;">Sin resultados</div>';
+                resultsDiv.innerHTML = '<div style="padding:12px; font-size:12px; color:var(--text-mut); text-align:center;">Sin resultados</div>';
             } else {
-                resultsDiv.innerHTML = list.map(c => `
-                    <div class="customer-result-row" onclick="selectCustomer(${c.id}, '${c.nombre}', '${c.cedula}')" style="padding:10px 12px; border-bottom:1px solid var(--border); cursor:pointer; font-size:12px; transition:background 0.2s;" onmouseover="this.style.background='var(--bg-hover)';" onmouseout="this.style.background='transparent';">
-                        <div style="font-weight:600; color:var(--text);">${c.nombre}</div>
-                        <div style="color:var(--text-sec); margin-top:2px;">Cédula: ${c.cedula} | Tel: ${c.telefono}</div>
+                let html = `
+                    <div style="display: grid; grid-template-columns: 100px 1fr 110px; padding: 8px 12px; font-weight: 600; font-size: 10px; color: var(--text-mut); border-bottom: 1px solid var(--border-strong); background: rgba(0,0,0,0.15); letter-spacing: 0.5px;">
+                        <div>DOCUMENTO</div>
+                        <div>NOMBRE</div>
+                        <div style="text-align: right;">TELÉFONO</div>
+                    </div>
+                `;
+                html += list.map(c => `
+                    <div class="customer-result-row" onclick="selectCustomer(${c.id}, '${c.nombre.replace(/'/g, "\\'")}', '${c.cedula}')" style="display: grid; grid-template-columns: 100px 1fr 110px; padding: 10px 12px; border-bottom: 1px solid var(--border); cursor: pointer; font-size: 12px; transition: background 0.15s; align-items: center;" onmouseover="this.style.background='var(--bg-hover)';" onmouseout="this.style.background='transparent';">
+                        <div class="mono" style="font-weight: 600; color: var(--accent);">${c.cedula}</div>
+                        <div style="font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 8px;">${c.nombre}</div>
+                        <div class="mono" style="text-align: right; color: var(--text-sec);">${c.telefono || '-'}</div>
                     </div>
                 `).join('');
+                resultsDiv.innerHTML = html;
             }
             resultsDiv.style.display = 'block';
         }
@@ -414,7 +468,13 @@ function clearSelectedCustomer() {
 
 function openNewCustomerModal() {
     document.getElementById('customer-modal').style.display = 'flex';
-    document.getElementById('cust-cedula').focus();
+    setTimeout(() => {
+        const input = document.getElementById('cust-cedula');
+        if (input) {
+            input.focus();
+            input.select();
+        }
+    }, 50);
 }
 
 function closeNewCustomerModal() {
@@ -470,7 +530,14 @@ function openCheckoutModal() {
     document.getElementById('pay-cash-received').value = '';
     document.getElementById('modal-change').textContent = '$0';
     document.getElementById('modal-change').style.color = 'var(--success)';
-    document.getElementById('pay-cash-received').focus();
+    
+    setTimeout(() => {
+        const input = document.getElementById('pay-cash-received');
+        if (input) {
+            input.focus();
+            input.select();
+        }
+    }, 50);
 }
 
 function closeCheckoutModal() {
@@ -498,7 +565,13 @@ function selectPayMethod(method) {
     if (method === 'efectivo') {
         calculatorFields.style.opacity = '1';
         calculatorFields.style.pointerEvents = 'auto';
-        document.getElementById('pay-cash-received').focus();
+        setTimeout(() => {
+            const input = document.getElementById('pay-cash-received');
+            if (input) {
+                input.focus();
+                input.select();
+            }
+        }, 50);
     } else {
         calculatorFields.style.opacity = '0.5';
         calculatorFields.style.pointerEvents = 'none';
