@@ -97,12 +97,25 @@
     flex-direction: column;
     gap: 2px;
 }
+.sidebar:not(.collapsed) .sidebar-section-collapsed {
+    display: none !important;
+}
 
 .sidebar-section-collapsed {
     display: flex;
     flex-direction: column;
     gap: 4px;
     align-items: center;
+}
+.sidebar.collapsed .sidebar-section {
+    display: none !important;
+}
+
+/* Collapsed state overrides to hide text and labels */
+.sidebar.collapsed .sidebar-logo-text,
+.sidebar.collapsed .sidebar-item-label,
+.sidebar.collapsed .sidebar-section-label {
+    display: none !important;
 }
 
 .sidebar-section-label {

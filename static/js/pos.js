@@ -679,6 +679,80 @@ async function submitPOSSale() {
     }
 }
 
+
+async function loadPOSSales() {
+    const period = document.getElementById('sales-period')?.value || 'today';
+    let fechaDesde = '';
+
+    if (period === 'today') {
+        const today = new Date();
+        fechaDesde = today.toISOString().split('T')[0];
+    } else if (period === 'week') {
+        const date = new Date();
+        date.setDate(date.getDate() - 7);
+        fechaDesde = date.toISOString().split('T')[0];
+    } else if (period === 'month') {
+        const date = new Date();
+        date.setMonth(date.getMonth() - 1);
+        fechaDesde = date.toISOString().split('T')[0];
+    }
+
+    try {
+        let url = `${API_URL}/orders?limit=30`;
+        if (fechaDesde) {
+            url += `&fecha_desde=${fechaDesde}`;
+        }
+
+        const r = await fetch(url, {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        
+        if (r.ok) {
+            const res = await r.json();
+            const list = res.data || [];
+            renderPOSSales(list);
+        } else {
+            console.error("Error al cargar historial de ventas");
+        }
+    } catch (e) {
+        console.error("Error de conexion al cargar ventas", e);
+    }
+}
+
+function renderPOSSales(orders) {
+    const tbody = document.getElementById('sales-tbody');
+    if (!tbody) return;
+
+    if (orders.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--text-mut)">No hay ventas registradas</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = orders.map(o => {
+        let dateStr = '-';
+        if (o.created_at) {
+            const dateObj = new Date(o.created_at);
+            if (!isNaN(dateObj.getTime())) {
+                dateStr = dateObj.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+            }
+        }
+        
+        const itemsQty = o.items ? o.items.reduce((sum, i) => sum + i.cantidad, 0) : 0;
+        const totalFormatted = (o.total || 0).toLocaleString('es-CO');
+        const payMethodStr = o.metodo_pago ? o.metodo_pago.charAt(0).toUpperCase() + o.metodo_pago.slice(1) : '-';
+
+        return `
+            <tr>
+                <td style="padding:12px 16px; font-weight:600;" class="mono">#${o.id}</td>
+                <td style="padding:12px 16px; color:var(--text-sec);">${dateStr}</td>
+                <td style="padding:12px 16px; text-align:center;" class="mono">${itemsQty}</td>
+                <td style="padding:12px 16px; font-weight:600;" class="mono">$${totalFormatted}</td>
+                <td style="padding:12px 16px;"><span class="badge badge-green">${payMethodStr}</span></td>
+            </tr>
+        `;
+    }).join('');
+}
+
 // Inicialización
 function initPOS() {
     loadPOSProducts();
