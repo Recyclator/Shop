@@ -232,6 +232,7 @@ func QuickPOSSale(c *fiber.Ctx) error {
 		} `json:"items" validate:"required,min=1"`
 		MetodoPago string  `json:"metodo_pago"`
 		Recibido   float64 `json:"recibido"`
+		CustomerID *uint   `json:"customer_id"`
 	}
 
 	if err := c.BodyParser(&input); err != nil {
@@ -354,6 +355,16 @@ func QuickPOSSale(c *fiber.Ctx) error {
 		Total:              total,
 		VendedorID:         &currentUser.ID,
 		Items:              items,
+	}
+
+	if input.CustomerID != nil && *input.CustomerID > 0 {
+		var customer models.Customer
+		if err := tx.First(&customer, *input.CustomerID).Error; err == nil {
+			order.ClienteNombre = customer.Nombre
+			order.ClienteEmail = customer.Email
+			order.ClienteTelefono = customer.Telefono
+			order.ClienteDocumento = customer.Cedula
+		}
 	}
 
 	if result := tx.Create(&order); result.Error != nil {
