@@ -240,10 +240,12 @@ code, .mono {
 
 .btn-primary {
     background: var(--accent);
-    color: white;
+    color: var(--bg);
 }
 
-.btn-primary:hover { background: #2563eb; }
+.btn-primary:hover {
+    opacity: 0.9;
+}
 
 .btn-secondary {
     background: var(--bg-surf);

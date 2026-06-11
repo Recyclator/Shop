@@ -48,7 +48,7 @@ templ POSPage() {
 					</div>
 
 					<!-- Products Grid -->
-					<div id="pos-products-grid" style="flex: 1; display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 16px; overflow-y: auto; padding-right: 4px;">
+					<div id="pos-products-grid" style="flex: 1; display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 16px; overflow-y: auto; padding-right: 4px; align-content: start;">
 						<div style="text-align: center; padding: 60px; color: var(--text-mut); grid-column: 1/-1;">
 							<div class="loader" style="margin: 0 auto 16px auto; border: 3px solid var(--border); border-top: 3px solid var(--accent); border-radius: 50%; width: 32px; height: 32px; animation: spin 1s linear infinite;"></div>
 							Cargando catálogo de productos...
@@ -552,6 +552,6 @@ templ POSPage() {
 		}
 	</style>
 
-	<script src="/static/js/toast.js"></script>
-	<script src="/static/js/pos.js"></script>
+	<script src="/static/js/toast.js?v=1.0.1"></script>
+	<script src="/static/js/pos.js?v=1.0.1"></script>
 }
