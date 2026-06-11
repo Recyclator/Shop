@@ -12,43 +12,43 @@
 
 /* ---------- Design Tokens ---------- */
 :root {
-    /* Dark Theme (Default) */
-    --bg: #0c0d0f;
-    --bg-elev: #131416;
-    --bg-surf: #18191d;
-    --bg-hover: #23252a;
-    --border: rgba(255,255,255,0.07);
+    /* Dark Theme (Default - Monochromatic Executive Look) */
+    --bg: #09090b;
+    --bg-elev: #121214;
+    --bg-surf: #18181b;
+    --bg-hover: #27272a;
+    --border: rgba(255,255,255,0.06);
     --border-strong: rgba(255,255,255,0.12);
-    --text: #f0f1f3;
-    --text-sec: #a0a5b1;
-    --text-mut: #5a6072;
-    --accent: #3b82f6;
-    --accent-dim: rgba(59,130,246,0.12);
-    --success: #22c55e;
-    --success-dim: rgba(34,197,94,0.1);
-    --warning: #f59e0b;
-    --danger: #ef4444;
-    --radius: 8px;
-    --radius-lg: 12px;
+    --text: #fafafa;
+    --text-sec: #a1a1aa;
+    --text-mut: #52525b;
+    --accent: #ffffff;
+    --accent-dim: rgba(255,255,255,0.08);
+    --success: #a5d6a7;
+    --success-dim: rgba(165, 214, 167, 0.08);
+    --warning: #ffe082;
+    --danger: #ef9a9a;
+    --radius: 6px;
+    --radius-lg: 10px;
 }
 
 /* Light Theme - Higher priority using [data-theme='light'] */
 [data-theme='light'] {
-    --bg: #f8fafc !important;
-    --bg-elev: #ffffff !important;
-    --bg-surf: #f1f5f9 !important;
-    --bg-hover: #e2e8f0 !important;
-    --border: rgba(0,0,0,0.08) !important;
+    --bg: #ffffff !important;
+    --bg-elev: #fafafa !important;
+    --bg-surf: #f4f4f5 !important;
+    --bg-hover: #e4e4e7 !important;
+    --border: rgba(0,0,0,0.06) !important;
     --border-strong: rgba(0,0,0,0.12) !important;
-    --text: #0f172a !important;
-    --text-sec: #475569 !important;
-    --text-mut: #94a3b8 !important;
-    --accent: #2563eb !important;
-    --accent-dim: rgba(37,99,235,0.1) !important;
-    --success: #16a34a !important;
-    --success-dim: rgba(22,163,74,0.1) !important;
-    --warning: #d97706 !important;
-    --danger: #dc2626 !important;
+    --text: #09090b !important;
+    --text-sec: #52525b !important;
+    --text-mut: #a1a1aa !important;
+    --accent: #09090b !important;
+    --accent-dim: rgba(9,9,11,0.06) !important;
+    --success: #2e7d32 !important;
+    --success-dim: rgba(46,125,50,0.06) !important;
+    --warning: #b38f00 !important;
+    --danger: #c62828 !important;
 }
 
 /* Transición suave global */
@@ -86,7 +86,7 @@ html:not([data-theme='light']) .moon-icon { display: none !important; }
 
 /* ---------- Typography ---------- */
 body {
-    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: 'Inter', 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     background: var(--bg);
     color: var(--text);
     min-height: 100vh;

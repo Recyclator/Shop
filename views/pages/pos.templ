@@ -6,14 +6,17 @@ templ POSPage() {
 		
 		<!-- TAB SELECTOR BAR (Mobile-friendly, adjusts on Desktop) -->
 		<div class="pos-tabs" style="display: flex; gap: 8px; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 4px;">
-			<button class="btn" @click="view = 'products'" :class="view === 'products' ? 'btn-primary' : 'btn-secondary'">
-				🛒 Ventas
+			<button class="btn" @click="view = 'products'" :class="view === 'products' ? 'btn-primary' : 'btn-secondary'" style="display: flex; align-items: center; gap: 8px;">
+				<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z"></path></svg>
+				<span>Ventas</span>
 			</button>
-			<button class="btn" id="tab-cart-btn" @click="view = 'cart'" :class="view === 'cart' ? 'btn-primary' : 'btn-secondary'">
-				📋 Carrito <span id="cart-count">(0)</span>
+			<button class="btn" id="tab-cart-btn" @click="view = 'cart'" :class="view === 'cart' ? 'btn-primary' : 'btn-secondary'" style="display: flex; align-items: center; gap: 8px;">
+				<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12A1.125 1.125 0 0 1 5.513 7.5h12.974c.576 0 1.059.435 1.119 1.007ZM8.625 10.5a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm7.5 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z"></path></svg>
+				<span>Carrito</span> <span id="cart-count">(0)</span>
 			</button>
-			<button class="btn" @click="view = 'sales'; loadPOSSales()" :class="view === 'sales' ? 'btn-primary' : 'btn-secondary'">
-				📜 Historial
+			<button class="btn" @click="view = 'sales'; loadPOSSales()" :class="view === 'sales' ? 'btn-primary' : 'btn-secondary'" style="display: flex; align-items: center; gap: 8px;">
+				<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+				<span>Historial</span>
 			</button>
 		</div>
 
@@ -156,7 +159,8 @@ templ POSPage() {
 		<div class="modal" style="max-width: 700px; width: 90%; border-radius: 16px; border: 1px solid var(--border-strong); box-shadow: 0 24px 38px 3px rgba(0,0,0,0.35); overflow: hidden; background: var(--bg-elev);">
 			<div class="modal-header" style="padding: 14px 20px; border-bottom: 1px solid var(--border-strong); background: var(--bg-surf); display: flex; align-items: center; justify-content: space-between;">
 				<h3 class="modal-title" style="font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px; color: var(--text);">
-					<span style="font-size: 18px;">💵</span> Finalizar Venta y Cobro
+					<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z"></path></svg>
+					<span>Finalizar Venta y Cobro</span>
 				</h3>
 				<div style="display: flex; align-items: center; gap: 10px;">
 					<span class="kbd-key" style="font-size: 9px; padding: 2px 5px; opacity: 0.8;">Esc</span>
@@ -171,7 +175,7 @@ templ POSPage() {
 					<button class="pay-method-btn active" id="pay-method-efectivo" onclick="selectPayMethod('efectivo')" style="display: flex; align-items: center; gap: 14px; width: 100%; padding: 16px; border-radius: 12px; border: 2px solid var(--accent); background: var(--accent-dim); color: var(--accent); cursor: pointer; text-align: left; transition: all 0.2s;">
 						<div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
 							<div style="display: flex; align-items: center; gap: 14px;">
-								<span style="font-size: 24px;">💵</span>
+								<svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="color: var(--text-sec);"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z"></path></svg>
 								<div>
 									<div style="font-weight: 700; font-size: 14px;">Efectivo</div>
 									<div style="font-size: 11px; opacity: 0.8;">Caja registradora clásica</div>
@@ -184,7 +188,7 @@ templ POSPage() {
 					<button class="pay-method-btn" id="pay-method-tarjeta" onclick="selectPayMethod('tarjeta')" style="display: flex; align-items: center; gap: 14px; width: 100%; padding: 16px; border-radius: 12px; border: 2px solid var(--border); background: var(--bg-surf); color: var(--text-sec); cursor: pointer; text-align: left; transition: all 0.2s;">
 						<div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
 							<div style="display: flex; align-items: center; gap: 14px;">
-								<span style="font-size: 24px;">💳</span>
+								<svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="color: var(--text-sec);"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-19.5 5.25h3m-3 2.25h3m-3.75-3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5z"></path></svg>
 								<div>
 									<div style="font-weight: 700; font-size: 14px;">Tarjeta</div>
 									<div style="font-size: 11px; opacity: 0.8;">Datáfono / Datafono inalámbrico</div>
@@ -197,7 +201,7 @@ templ POSPage() {
 					<button class="pay-method-btn" id="pay-method-transferencia" onclick="selectPayMethod('transferencia')" style="display: flex; align-items: center; gap: 14px; width: 100%; padding: 16px; border-radius: 12px; border: 2px solid var(--border); background: var(--bg-surf); color: var(--text-sec); cursor: pointer; text-align: left; transition: all 0.2s;">
 						<div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
 							<div style="display: flex; align-items: center; gap: 14px;">
-								<span style="font-size: 24px;">📲</span>
+								<svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="color: var(--text-sec);"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 0 0 6 3.75v16.5a2.25 2.25 0 0 0 2.25 2.25h7.5A2.25 2.25 0 0 0 18 20.25V3.75a2.25 2.25 0 0 0-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3"></path></svg>
 								<div>
 									<div style="font-weight: 700; font-size: 14px;">Nequi / Transferencia</div>
 									<div style="font-size: 11px; opacity: 0.8;">Banca móvil / QR digital</div>
@@ -263,7 +267,8 @@ templ POSPage() {
 		<div class="modal" style="max-width: 580px; width: 90%; border-radius: 16px; border: 1px solid var(--border-strong); box-shadow: 0 24px 38px 3px rgba(0,0,0,0.35); overflow: hidden; background: var(--bg-elev);">
 			<div class="modal-header" style="padding: 14px 20px; border-bottom: 1px solid var(--border-strong); background: var(--bg-surf); display: flex; align-items: center; justify-content: space-between;">
 				<h3 class="modal-title" style="font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px; color: var(--text);">
-					<span style="font-size: 18px;">👤</span> Registrar Nuevo Cliente
+					<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0zM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632z"></path></svg>
+					<span>Registrar Nuevo Cliente</span>
 				</h3>
 				<div style="display: flex; align-items: center; gap: 10px;">
 					<span class="kbd-key" style="font-size: 9px; padding: 2px 5px; opacity: 0.8;">Esc</span>
@@ -324,8 +329,9 @@ templ POSPage() {
 						</div>
 					</div>
 					
-					<div style="font-size: 11px; color: var(--text-mut); margin-top: 4px; display: flex; align-items: center; gap: 6px;">
-						<span>ℹ️</span> Los campos marcados con <span style="color: var(--danger);">*</span> son requeridos por la DIAN para facturación electrónica.
+					<div style="font-size: 11px; color: var(--text-mut); margin-top: 4px; display: flex; align-items: center; gap: 8px;">
+						<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 111.063.852l-.708 2.836a.75.75 0 001.063.852l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z"></path></svg>
+						<span>Los campos marcados con <span style="color: var(--danger);">*</span> son requeridos por la DIAN para facturación electrónica.</span>
 					</div>
 
 					<div class="modal-footer" style="padding: 16px 0 0 0; border-top: 1px solid var(--border); background: transparent; display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px;">

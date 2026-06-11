@@ -59,7 +59,7 @@ func SidebarIcon(name string) string {
 
 // Sidebar renders the desktop sidebar with Alpine collapse
 templ Sidebar(activeRoute string) {
-	<aside class="sidebar" x-data="{ collapsed: false }" :class="{ 'collapsed': collapsed }">
+	<aside class="sidebar" x-data="{ collapsed: window.innerWidth < 1200 }" :class="{ 'collapsed': collapsed }">
 		<!-- Header -->
 		<div class="sidebar-header">
 			<div class="sidebar-logo" x-show="!collapsed" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
