@@ -80,7 +80,17 @@ func GetDefaultPermissions() []Permission {
 
 		// Clientes
 		{Codigo: "customers.read", Nombre: "Ver clientes", Modulo: "customers", Accion: "read", Descripcion: "Permite ver clientes"},
+		{Codigo: "customers.create", Nombre: "Crear clientes", Modulo: "customers", Accion: "create", Descripcion: "Permite registrar nuevos clientes"},
 		{Codigo: "customers.update", Nombre: "Actualizar clientes", Modulo: "customers", Accion: "update", Descripcion: "Permite modificar clientes"},
+		{Codigo: "customers.delete", Nombre: "Eliminar clientes", Modulo: "customers", Accion: "delete", Descripcion: "Permite eliminar clientes del sistema"},
+
+		// Separados (Layaways)
+		{Codigo: "layaways.create", Nombre: "Crear separados", Modulo: "layaways", Accion: "create", Descripcion: "Permite crear nuevos separados"},
+		{Codigo: "layaways.read", Nombre: "Ver separados", Modulo: "layaways", Accion: "read", Descripcion: "Permite ver listados y detalles de separados"},
+		{Codigo: "layaways.update", Nombre: "Actualizar separados", Modulo: "layaways", Accion: "update", Descripcion: "Permite actualizar estado de separados"},
+		{Codigo: "layaways.cancel", Nombre: "Cancelar separados", Modulo: "layaways", Accion: "cancel", Descripcion: "Permite cancelar separados"},
+		{Codigo: "layaways.payment", Nombre: "Registrar abonos", Modulo: "layaways", Accion: "payment", Descripcion: "Permite registrar abonos a separados"},
+		{Codigo: "layaways.delete", Nombre: "Eliminar separados", Modulo: "layaways", Accion: "delete", Descripcion: "Permite eliminar separados del sistema"},
 
 		// Inventario
 		{Codigo: "inventory.read", Nombre: "Ver inventario", Modulo: "inventory", Accion: "read", Descripcion: "Permite ver inventario"},
@@ -88,5 +98,13 @@ func GetDefaultPermissions() []Permission {
 
 		// POS
 		{Codigo: "pos.use", Nombre: "Usar Punto de Venta", Modulo: "pos", Accion: "use", Descripcion: "Permite usar el Punto de Venta (POS)"},
+
+		// Atributos (Attributes)
+		{Codigo: "attributes.create", Nombre: "Crear atributos", Modulo: "attributes", Accion: "create", Descripcion: "Permite crear nuevos atributos de productos"},
+		{Codigo: "attributes.update", Nombre: "Actualizar atributos", Modulo: "attributes", Accion: "update", Descripcion: "Permite modificar atributos de productos"},
+		{Codigo: "attributes.delete", Nombre: "Eliminar atributos", Modulo: "attributes", Accion: "delete", Descripcion: "Permite eliminar atributos de productos"},
+
+		// Sistema
+		{Codigo: "system.admin", Nombre: "Administración del sistema", Modulo: "system", Accion: "admin", Descripcion: "Permite realizar tareas administrativas del sistema"},
 	}
 }

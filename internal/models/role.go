@@ -1,6 +1,7 @@
 package models
 
 import (
+	"errors"
 	"time"
 
 	"gorm.io/gorm"
@@ -67,6 +68,21 @@ func GetDefaultRoles() []Role {
 }
 
 func AssignDefaultPermissions(db *gorm.DB) error {
+	// Asegurar que todos los permisos por defecto existan en la base de datos
+	defaultPerms := GetDefaultPermissions()
+	for _, p := range defaultPerms {
+		var existing Permission
+		if err := db.Where("codigo = ?", p.Codigo).First(&existing).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				if err := db.Create(&p).Error; err != nil {
+					return err
+				}
+			} else {
+				return err
+			}
+		}
+	}
+
 	// Obtener permisos por nombre de acción
 	var permissions []Permission
 	if err := db.Find(&permissions).Error; err != nil {
@@ -101,9 +117,11 @@ func AssignDefaultPermissions(db *gorm.DB) error {
 		"reports.read", "reports.export",
 		"settings.read", "settings.update",
 		"payments.read", "payments.process",
-		"customers.read", "customers.update",
+		"customers.read", "customers.create", "customers.update", "customers.delete",
+		"layaways.read", "layaways.create", "layaways.read", "layaways.update", "layaways.cancel", "layaways.payment", "layaways.delete",
 		"inventory.read", "inventory.update",
 		"pos.use",
+		"attributes.create", "attributes.update", "attributes.delete",
 	}
 	var admin Role
 	if err := db.Where("nombre = ?", "admin").First(&admin).Error; err != nil {
@@ -124,7 +142,7 @@ func AssignDefaultPermissions(db *gorm.DB) error {
 		"categories.read", "categories.create", "categories.update", "categories.delete",
 		"orders.create", "orders.read", "orders.update",
 		"customers.read", "customers.create", "customers.update",
-		"layaways.read", "layaways.create", "layaways.update",
+		"layaways.read", "layaways.create", "layaways.update", "layaways.cancel", "layaways.payment",
 		"inventory.read", "inventory.update",
 		"pos.use",
 	}

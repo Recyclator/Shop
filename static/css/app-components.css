@@ -260,9 +260,11 @@
     color: var(--text);
 }
 
-.nav-pill-item.active {
+.nav-pill-item.active,
+.nav-pill-item.active span,
+.nav-pill-item.active svg {
     background: var(--accent);
-    color: #ffffff;
+    color: var(--bg) !important;
 }
 
 /* ========================================

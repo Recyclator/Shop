@@ -52,6 +52,7 @@ func Migrate() error {
 		&models.ProductVariant{},
 		&models.VariantAttributeValue{},
 		&models.ProductAttribute{},
+		&models.ProductImage{},
 		&models.StockMovement{},
 		&models.Tag{},
 		&models.Order{},

@@ -21,7 +21,7 @@ const Toast = {
                 border-radius: 12px;
                 background: var(--bg-elev, #1a1a1a);
                 border: 1px solid var(--border, #333);
-                color: #fff;
+                color: var(--text, #fff);
                 font-size: 14px;
                 box-shadow: 0 8px 32px rgba(0,0,0,0.4);
                 animation: toast-in 0.3s ease;
@@ -51,13 +51,13 @@ const Toast = {
             .toast-close {
                 background: none;
                 border: none;
-                color: #666;
+                color: var(--text-mut, #666);
                 cursor: pointer;
                 padding: 0;
                 font-size: 18px;
                 line-height: 1;
             }
-            .toast-close:hover { color: #fff; }
+            .toast-close:hover { color: var(--text, #fff); }
             @keyframes toast-in {
                 from { transform: translateX(100%); opacity: 0; }
                 to { transform: translateX(0); opacity: 1; }

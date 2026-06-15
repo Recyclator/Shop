@@ -55,6 +55,7 @@ type Product struct {
 	// Variantes
 	TieneVariantes bool             `gorm:"default:false" json:"tiene_variantes"`
 	Variantes      []ProductVariant `gorm:"foreignKey:ProductoID" json:"variantes,omitempty"`
+	Imagenes       []ProductImage   `gorm:"foreignKey:ProductoID" json:"imagenes,omitempty"`
 
 	// Código de barras
 	Barcode string `gorm:"size:500" json:"barcode"`
@@ -167,6 +168,7 @@ type ProductResponse struct {
 	Nuevo               bool             `json:"nuevo"`
 	TieneVariantes      bool             `json:"tiene_variantes"`
 	Variantes           []ProductVariant `json:"variantes,omitempty"`
+	Imagenes            []ProductImage   `json:"imagenes,omitempty"`
 	Barcode             string           `json:"barcode"`
 	CreatedAt           time.Time        `json:"created_at"`
 }
@@ -192,6 +194,7 @@ func (p *Product) ToResponse() ProductResponse {
 		Nuevo:               p.Nuevo,
 		TieneVariantes:      p.TieneVariantes,
 		Variantes:           p.Variantes,
+		Imagenes:            p.Imagenes,
 		Barcode:             p.Barcode,
 		CreatedAt:           p.CreatedAt,
 	}

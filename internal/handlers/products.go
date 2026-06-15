@@ -32,7 +32,7 @@ func GetProducts(c *fiber.Ctx) error {
 
 	offset := (page - 1) * limit
 
-	query := database.DB.Model(&models.Product{}).Preload("Categoria").Preload("Tags").Preload("Variantes")
+	query := database.DB.Model(&models.Product{}).Preload("Categoria").Preload("Tags").Preload("Variantes").Preload("Imagenes")
 
 	// Filtros
 	if search != "" {
@@ -96,6 +96,7 @@ func GetProductByID(c *fiber.Ctx) error {
 		Preload("Categoria").
 		Preload("Tags").
 		Preload("Variantes").
+		Preload("Imagenes").
 		First(&product, id); result.Error != nil {
 		return utils.ErrorWithCode(c, fiber.StatusNotFound, "NOT_FOUND", "producto no encontrado")
 	}
@@ -213,7 +214,7 @@ func CreateProduct(c *fiber.Ctx) error {
 	}
 
 	// Cargar relaciones
-	database.DB.Preload("Categoria").Preload("Tags").Preload("Variantes").First(&product, product.ID)
+	database.DB.Preload("Categoria").Preload("Tags").Preload("Variantes").Preload("Imagenes").First(&product, product.ID)
 
 	return utils.Success(c, fiber.StatusCreated, "producto creado exitosamente", product.ToResponse())
 }
@@ -312,7 +313,7 @@ func UpdateProduct(c *fiber.Ctx) error {
 	}
 
 	// Recargar
-	database.DB.Preload("Categoria").Preload("Tags").Preload("Variantes").First(&product, product.ID)
+	database.DB.Preload("Categoria").Preload("Tags").Preload("Variantes").Preload("Imagenes").First(&product, product.ID)
 
 	return utils.Success(c, fiber.StatusOK, "producto actualizado exitosamente", product.ToResponse())
 }

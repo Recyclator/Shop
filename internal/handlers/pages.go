@@ -88,7 +88,11 @@ func RenderRolesPermissions(c *fiber.Ctx) error {
 
 // renderPage renders a complete page with base layout
 func renderPage(c *fiber.Ctx, title, activeRoute string, content templ.Component) error {
+	c.Set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate")
+	c.Set("Pragma", "no-cache")
+	c.Set("Expires", "0")
 	page := layout.Base(title, activeRoute, content)
 	h := adaptor.HTTPHandler(templ.Handler(page))
 	return h(c)
 }
+

@@ -27,7 +27,7 @@ func SecurityHeadersMiddleware() fiber.Handler {
 		// c.Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload")
 
 		// Content-Security-Policy
-		csp := "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';"
+		csp := "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';"
 		c.Set("Content-Security-Policy", csp)
 
 		return c.Next()

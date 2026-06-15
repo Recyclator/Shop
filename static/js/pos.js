@@ -1,3 +1,5 @@
+function getAuthToken() { return window.token || localStorage.getItem('nexora_token') || ''; }
+function getBaseApiUrl() { return window.API_URL || '/api'; }
 let posProducts = [];
 let posCategories = [];
 let cart = [];
@@ -7,8 +9,8 @@ let selectedPayMethod = 'efectivo';
 
 async function loadPOSProducts() {
     try {
-        const r = await fetch(`${API_URL}/pos/products?limit=100&estado=activo`, {
-            headers: { 'Authorization': 'Bearer ' + token }
+        const r = await fetch(`${getBaseApiUrl()}/pos/products?limit=100&estado=activo`, {
+            headers: { 'Authorization': 'Bearer ' + getAuthToken() }
         });
         if (r.ok) {
             const res = await r.json();
@@ -22,8 +24,8 @@ async function loadPOSProducts() {
 
 async function loadPOSCategories() {
     try {
-        const r = await fetch(`${API_URL}/categories`, {
-            headers: { 'Authorization': 'Bearer ' + token }
+        const r = await fetch(`${getBaseApiUrl()}/categories`, {
+            headers: { 'Authorization': 'Bearer ' + getAuthToken() }
         });
         if (r.ok) {
             const res = await r.json();
@@ -82,24 +84,77 @@ function renderPOSProducts() {
     }
 
     grid.innerHTML = filtered.map(p => {
-        const isOutOfStock = p.stock <= 0 && !p.permite_stock_negativo;
-        const cardStyle = isOutOfStock ? 'opacity: 0.55; cursor: not-allowed;' : 'cursor: pointer;';
+        const isOutOfStock = p.stock <= 0;
+        const cardClass = isOutOfStock ? 'pos-product-card oos' : 'pos-product-card';
         const clickAction = isOutOfStock ? '' : `onclick="addToCart(${p.id})"`;
-        const badgeClass = p.stock <= 0 ? 'badge-red' : (p.stock <= p.stock_minimo ? 'badge-yellow' : 'badge-green');
-        const badgeText = p.stock <= 0 ? 'Agotado' : `Stock: ${p.stock}`;
+        
+        // Stock status badge
+        let stockBadgeHtml = '';
+        if (isOutOfStock) {
+            stockBadgeHtml = `<span class="pos-stock-badge status-red"><span class="pulse-dot"></span>Agotado</span>`;
+        } else if (p.stock <= 5) {
+            stockBadgeHtml = `<span class="pos-stock-badge status-yellow"><span class="pulse-dot"></span>Crítico: ${p.stock}</span>`;
+        } else {
+            stockBadgeHtml = `<span class="pos-stock-badge status-green"><span class="pulse-dot"></span>Stock: ${p.stock}</span>`;
+        }
 
-        const variantsIndicator = p.tiene_variantes ? `<div style="font-size:11px;color:var(--accent);font-weight:600;margin-top:2px;">Múltiples Variantes</div>` : '';
+        // Cart quantity badge
+        const cartItemsForProduct = cart.filter(c => c.id === p.id);
+        const qtyInCart = cartItemsForProduct.reduce((sum, item) => sum + item.qty, 0);
+        const cartBadgeHtml = qtyInCart > 0 ? `<span class="pos-cart-qty-badge">${qtyInCart} en carrito</span>` : '';
+
+        // Image template
+        let imgHtml = '';
+        if (p.imagen && p.imagen.trim() !== '') {
+            imgHtml = `<img src="${p.imagen}" alt="${p.nombre}" class="pos-product-img" loading="lazy">`;
+        } else {
+            imgHtml = `
+                <div class="pos-product-placeholder">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+                    </svg>
+                </div>
+            `;
+        }
+
+        // Price formatting with discounts
+        let priceHtml = '';
+        const hasDiscount = p.precio_anterior && p.precio_anterior > p.precio;
+        if (hasDiscount) {
+            const pct = Math.round(((p.precio_anterior - p.precio) / p.precio_anterior) * 100);
+            priceHtml = `
+                <div class="pos-price-wrapper">
+                    <span class="pos-price-current mono">$${(p.precio || 0).toLocaleString('es-CO')}</span>
+                    <span class="pos-price-old mono">$${(p.precio_anterior || 0).toLocaleString('es-CO')}</span>
+                    <span class="pos-discount-tag">-${pct}%</span>
+                </div>
+            `;
+        } else {
+            priceHtml = `
+                <div class="pos-price-wrapper">
+                    <span class="pos-price-current mono">$${(p.precio || 0).toLocaleString('es-CO')}</span>
+                </div>
+            `;
+        }
+
+        const variantsIndicator = p.tiene_variantes ? `<span class="pos-variants-tag">Variantes</span>` : '';
+        const catLabel = p.categoria_nombre ? `<span class="pos-cat-label">${p.categoria_nombre}</span>` : '';
 
         return `
-            <div class="card" style="padding:14px; display:flex; flex-direction:column; justify-content:space-between; height:100%; transition:transform 0.15s, box-shadow 0.15s; border:1px solid var(--border); ${cardStyle}" ${clickAction} onmouseover="this.style.transform='translateY(-2px)';" onmouseout="this.style.transform='none';">
-                <div>
-                    <div style="font-weight:600; font-size:13px; color:var(--text); line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; min-height:36px; margin-bottom:6px;">${p.nombre}</div>
-                    <div class="mono" style="font-size:14px; font-weight:700; color:var(--accent);">$${(p.precio || 0).toLocaleString('es-CO')}</div>
+            <div class="${cardClass}" ${clickAction}>
+                <div class="pos-product-img-wrapper">
+                    ${imgHtml}
                     ${variantsIndicator}
+                    ${stockBadgeHtml}
+                    ${cartBadgeHtml}
                 </div>
-                <div style="margin-top:12px; display:flex; justify-content:space-between; align-items:center;">
-                    <span class="badge ${badgeClass}" style="font-size:9px;">${badgeText}</span>
-                    <span class="mono" style="font-size:10px; color:var(--text-mut); font-weight:500;">${p.sku || ''}</span>
+                <div class="pos-product-info">
+                    ${catLabel}
+                    <div class="pos-product-name" title="${p.nombre}">${p.nombre}</div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:auto; padding-top:8px;">
+                        ${priceHtml}
+                        <span class="pos-product-sku mono">${p.sku || ''}</span>
+                    </div>
                 </div>
             </div>
         `;
@@ -162,13 +217,32 @@ function addToCart(id, variantId = null) {
     playConfirmBeep();
 }
 
-function removeFromCart(id, variantId = null) {
-    cart = cart.filter(c => !(c.id === id && c.variantId === variantId));
+async function removeFromCart(id, variantId = null) {
+    const targetId = Number(id);
+    let targetVariantId = (variantId && variantId !== '0' && variantId !== 0) ? Number(variantId) : null;
+
+    let confirmed = false;
+    if (typeof window.confirmDelete === 'function') {
+        confirmed = await window.confirmDelete({
+            title: '¿Remover producto?',
+            message: '¿Estás seguro de que deseas remover este producto del carrito?',
+            btnOkText: 'Remover'
+        });
+    } else {
+        confirmed = confirm('¿Estás seguro de que deseas remover este producto del carrito?');
+    }
+    
+    if (!confirmed) return;
+
+    cart = cart.filter(c => !(Number(c.id) === targetId && (c.variantId ? Number(c.variantId) : null) === targetVariantId));
     renderCart();
 }
 
 function updateCartQty(id, variantId, delta) {
-    const item = cart.find(c => c.id === id && c.variantId === variantId);
+    const targetId = Number(id);
+    let targetVariantId = (variantId && variantId !== '0' && variantId !== 0) ? Number(variantId) : null;
+
+    const item = cart.find(c => Number(c.id) === targetId && (c.variantId ? Number(c.variantId) : null) === targetVariantId);
     if (!item) return;
 
     item.qty += delta;
@@ -191,18 +265,41 @@ function renderCart() {
     document.getElementById('cart-count').textContent = `(${totalQty})`;
 
     const container = document.getElementById('cart-items');
+    
+    // Repintar catálogo para actualizar insignias de cantidad en carrito
+    renderPOSProducts();
+
     if (!cart.length) {
         container.innerHTML = `
-            <div style="text-align: center; padding: 60px 20px; color: var(--text-mut);">
-                <svg style="width: 48px; height: 48px; margin: 0 auto 12px auto; opacity: 0.3;" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+            <div class="pos-empty-cart-instructions">
+                <svg style="width: 42px; height: 42px; margin: 0 auto 12px auto; color: var(--text-mut); opacity: 0.5;" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z"></path>
                 </svg>
-                Carrito vacío
+                <div style="font-weight: 700; font-size: 14px; color: var(--text); margin-bottom: 6px;">¿Cómo vender un producto?</div>
+                <p style="font-size: 11px; color: var(--text-sec); margin: 0 auto 12px auto; max-width: 250px; line-height: 1.4;">Siga estos pasos para registrar una venta:</p>
+                
+                <div class="pos-step-item">
+                    <span class="pos-step-num">1</span>
+                    <div class="pos-step-text"><b>Seleccione productos:</b> Haga clic en la tarjeta del producto o use el buscador/escáner.</div>
+                </div>
+                <div class="pos-step-item">
+                    <span class="pos-step-num">2</span>
+                    <div class="pos-step-text"><b>Configure cantidades:</b> Ajuste cantidades en este panel lateral si es necesario.</div>
+                </div>
+                <div class="pos-step-item">
+                    <span class="pos-step-num">3</span>
+                    <div class="pos-step-text"><b>Haga clic en Cobrar:</b> Presione el botón azul inferior o la tecla <b>F12</b>.</div>
+                </div>
+                <div class="pos-step-item">
+                    <span class="pos-step-num">4</span>
+                    <div class="pos-step-text"><b>Completar venta:</b> Ingrese el dinero recibido y haga clic en "Completar Venta".</div>
+                </div>
             </div>
         `;
         document.getElementById('cart-subtotal').textContent = '$0';
         document.getElementById('cart-tax').textContent = '$0';
         document.getElementById('cart-total').textContent = '$0';
+        
         return;
     }
 
@@ -226,7 +323,9 @@ function renderCart() {
                         <button class="action-btn" onclick="updateCartQty(${item.id}, ${item.variantId || 0}, 1)" style="width:24px; height:24px; padding:0; display:flex; align-items:center; justify-content:center; font-size:14px; border:none; background:transparent; cursor:pointer; color:var(--text-sec);">+</button>
                     </div>
                     <span class="mono" style="font-weight:600; font-size:13px; min-width:75px; text-align:right; color:var(--text);">$${(item.precio * item.qty).toLocaleString('es-CO')}</span>
-                    <button class="action-btn" onclick="removeFromCart(${item.id}, ${item.variantId || 0})" style="color:var(--danger); margin-left:4px; display:flex; align-items:center; justify-content:center; width:24px; height:24px; border:none; background:transparent; cursor:pointer; font-size:16px;">&times;</button>
+                    <button class="action-btn" onclick="removeFromCart(${item.id}, ${item.variantId || 0})" style="color:var(--danger); margin-left:8px; display:flex; align-items:center; justify-content:center; width:28px; height:28px; border:none; background:transparent; cursor:pointer;" title="Remover del carrito">
+                        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline x1="3" y1="6" x2="21" y2="6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                    </button>
                 </div>
             </div>
         `;
@@ -298,8 +397,8 @@ function setupBarcodeScanner() {
 
 async function scanBarcodeByCode(code) {
     try {
-        const r = await fetch(`${API_URL}/products/barcode/${code}`, {
-            headers: { 'Authorization': 'Bearer ' + token }
+        const r = await fetch(`${getBaseApiUrl()}/products/barcode/${code}`, {
+            headers: { 'Authorization': 'Bearer ' + getAuthToken() }
         });
         if (r.ok) {
             const res = await r.json();
@@ -415,8 +514,8 @@ async function searchCustomers() {
     }
 
     try {
-        const r = await fetch(`${API_URL}/customers?search=${encodeURIComponent(q)}&limit=5`, {
-            headers: { 'Authorization': 'Bearer ' + token }
+        const r = await fetch(`${getBaseApiUrl()}/customers?search=${encodeURIComponent(q)}&limit=5`, {
+            headers: { 'Authorization': 'Bearer ' + getAuthToken() }
         });
         if (r.ok) {
             const res = await r.json();
@@ -491,10 +590,10 @@ async function submitNewCustomer(e) {
     const email = document.getElementById('cust-email').value.trim();
 
     try {
-        const r = await fetch(`${API_URL}/customers`, {
+        const r = await fetch(`${getBaseApiUrl()}/customers`, {
             method: 'POST',
             headers: {
-                'Authorization': 'Bearer ' + token,
+                'Authorization': 'Bearer ' + getAuthToken(),
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({ cedula, nombre, email, telefono })
@@ -649,10 +748,10 @@ async function submitPOSSale() {
     };
 
     try {
-        const r = await fetch(`${API_URL}/orders/pos`, {
+        const r = await fetch(`${getBaseApiUrl()}/orders/pos`, {
             method: 'POST',
             headers: {
-                'Authorization': 'Bearer ' + token,
+                'Authorization': 'Bearer ' + getAuthToken(),
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify(payload)
@@ -681,41 +780,53 @@ async function submitPOSSale() {
 
 
 async function loadPOSSales() {
-    const period = document.getElementById('sales-period')?.value || 'today';
-    let fechaDesde = '';
-
-    if (period === 'today') {
-        const today = new Date();
-        fechaDesde = today.toISOString().split('T')[0];
-    } else if (period === 'week') {
-        const date = new Date();
-        date.setDate(date.getDate() - 7);
-        fechaDesde = date.toISOString().split('T')[0];
-    } else if (period === 'month') {
-        const date = new Date();
-        date.setMonth(date.getMonth() - 1);
-        fechaDesde = date.toISOString().split('T')[0];
-    }
-
     try {
-        let url = `${API_URL}/orders?limit=30`;
+        console.log("loadPOSSales: Iniciando carga de historial...");
+        const periodEl = document.getElementById('sales-period');
+        const period = periodEl ? periodEl.value : 'today';
+        let fechaDesde = '';
+
+        if (period === 'today') {
+            const today = new Date();
+            fechaDesde = today.toISOString().split('T')[0];
+        } else if (period === 'week') {
+            const date = new Date();
+            date.setDate(date.getDate() - 7);
+            fechaDesde = date.toISOString().split('T')[0];
+        } else if (period === 'month') {
+            const date = new Date();
+            date.setMonth(date.getMonth() - 1);
+            fechaDesde = date.toISOString().split('T')[0];
+        }
+
+        let url = `${getBaseApiUrl()}/orders?limit=30`;
         if (fechaDesde) {
             url += `&fecha_desde=${fechaDesde}`;
         }
 
+        console.log(`loadPOSSales: Fetching orders from ${url} ...`);
         const r = await fetch(url, {
-            headers: { 'Authorization': 'Bearer ' + token }
+            headers: { 'Authorization': 'Bearer ' + getAuthToken() }
         });
         
         if (r.ok) {
             const res = await r.json();
             const list = res.data || [];
+            console.log(`loadPOSSales: Carga exitosa, ${list.length} ventas encontradas.`);
             renderPOSSales(list);
         } else {
-            console.error("Error al cargar historial de ventas");
+            console.error(`loadPOSSales: Error HTTP ${r.status} al cargar ventas`);
+            const tbody = document.getElementById('sales-tbody');
+            if (tbody) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-mut)">Error al cargar historial de ventas o sin permisos (HTTP ' + r.status + ')</td></tr>';
+            }
         }
     } catch (e) {
-        console.error("Error de conexion al cargar ventas", e);
+        console.error("loadPOSSales: Excepción atrapada:", e);
+        const tbody = document.getElementById('sales-tbody');
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-mut)">Error de conexión o script al cargar ventas</td></tr>';
+        }
     }
 }
 
@@ -754,12 +865,69 @@ function renderPOSSales(orders) {
 }
 
 // Inicialización
+let currentPOSView = 'products';
+
+function switchPOSView(viewName) {
+    currentPOSView = viewName;
+
+    // 1. Actualizar clases de los botones de pestañas
+    const tabs = ['products', 'cart', 'sales'];
+    tabs.forEach(t => {
+        const btn = document.getElementById(`tab-${t}-btn`);
+        if (btn) {
+            if (t === viewName) {
+                btn.classList.remove('btn-secondary');
+                btn.classList.add('btn-primary');
+            } else {
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-secondary');
+            }
+        }
+    });
+
+    // 2. Cambiar clase del contenedor principal
+    const container = document.getElementById('pos-main-container');
+    if (container) {
+        container.className = `pos-container view-${viewName}`;
+    }
+
+    // 3. Alternar paneles internos del catálogo (Productos vs Historial)
+    const prodPanel = document.getElementById('view-products-panel');
+    const salesPanel = document.getElementById('view-sales-panel');
+    
+    if (prodPanel) prodPanel.style.display = (viewName === 'products') ? 'flex' : 'none';
+    if (salesPanel) salesPanel.style.display = (viewName === 'sales') ? 'flex' : 'none';
+}
+
 function initPOS() {
     loadPOSProducts();
     loadPOSCategories();
     setupBarcodeScanner();
     setupKeyboardShortcuts();
+    loadPOSSales();
+    switchPOSView('products');
 }
+
+window.loadPOSSales = loadPOSSales;
+window.loadPOSProducts = loadPOSProducts;
+window.searchPOSProducts = searchPOSProducts;
+window.addToCart = addToCart;
+window.updateCartQty = updateCartQty;
+window.removeFromCart = removeFromCart;
+window.openCheckoutModal = openCheckoutModal;
+window.closeCheckoutModal = closeCheckoutModal;
+window.selectPayMethod = selectPayMethod;
+window.calculateChange = calculateChange;
+window.addQuickCash = addQuickCash;
+window.setExactCash = setExactCash;
+window.submitPOSSale = submitPOSSale;
+window.openNewCustomerModal = openNewCustomerModal;
+window.closeNewCustomerModal = closeNewCustomerModal;
+window.submitNewCustomer = submitNewCustomer;
+window.searchCustomers = searchCustomers;
+window.selectCustomer = selectCustomer;
+window.clearSelectedCustomer = clearSelectedCustomer;
+window.switchPOSView = switchPOSView;
 
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initPOS);

@@ -14,6 +14,7 @@ type POSSearchItem struct {
 	Nombre         string                   `json:"nombre"`
 	SKU            string                   `json:"sku"`
 	Precio         float64                  `json:"precio"`
+	PrecioAnterior float64                  `json:"precio_anterior"`
 	Stock          int                      `json:"stock"`
 	ControlaStock  bool                     `json:"controla_stock"`
 	Imagen         string                   `json:"imagen"`
@@ -45,6 +46,7 @@ func POSSearch(c *fiber.Ctx) error {
 			Nombre:         product.Nombre,
 			SKU:            product.SKU,
 			Precio:         product.Precio,
+			PrecioAnterior: product.PrecioAnterior,
 			Stock:          product.Stock,
 			ControlaStock:  product.ControlaInventario,
 			Imagen:         product.ImagenPrincipal,
@@ -113,6 +115,7 @@ func POSSearchSimple(c *fiber.Ctx) error {
 		Nombre          string         `json:"nombre"`
 		SKU             string         `json:"sku"`
 		Precio          float64        `json:"precio"`
+		PrecioAnterior  float64        `json:"precio_anterior"`
 		PrecioFinal     float64        `json:"precio_final"`
 		Stock           int            `json:"stock"`
 		Imagen          string         `json:"imagen"`
@@ -128,6 +131,7 @@ func POSSearchSimple(c *fiber.Ctx) error {
 			Nombre:          p.Nombre,
 			SKU:             p.SKU,
 			Precio:          p.Precio,
+			PrecioAnterior:  p.PrecioAnterior,
 			PrecioFinal:     p.Precio,
 			Stock:           p.Stock,
 			Imagen:          p.ImagenPrincipal,
