@@ -20,6 +20,21 @@ const state = {
   existingVariants: [],      // variants already stored on the server
 };
 
+// ============ ICONS (SVG) ============
+const ICONS = {
+  general: `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" style="vertical-align:middle"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>`,
+  precios: `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" style="vertical-align:middle"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`,
+  imagenes: `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" style="vertical-align:middle"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`,
+  variantes: `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" style="vertical-align:middle"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>`,
+  box: `<svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="opacity:0.6"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m-8-10l8 4m-8-4v10l8 4m0-14v4"/></svg>`,
+  warning: `<svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="opacity:0.6"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>`,
+  imageEmpty: `<svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="opacity:0.6"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`,
+  variantEmpty: `<svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="opacity:0.6"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>`,
+  star: `<svg width="14" height="14" fill="#f59e0b" viewBox="0 0 24 24" style="vertical-align:middle"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>`,
+  camera: `<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" style="display:inline-block;vertical-align:middle;margin-right:2px"><path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z"/><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z"/></svg>`,
+  variantTiny: `<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" style="display:inline-block;vertical-align:middle;margin-right:2px"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>`
+};
+
 // ============ FORMATTERS ============
 const fmt = {
   price(v) {
@@ -89,10 +104,11 @@ function setLoading(container, loading) {
   }
 }
 
-function emptyState(message, icon = '📦') {
+function emptyState(message, iconKey = 'box') {
+  const svg = ICONS[iconKey] || ICONS['box'];
   return `
     <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3rem;color:var(--text-mut)">
-      <span style="font-size:2.5rem;margin-bottom:.75rem">${icon}</span>
+      <div style="margin-bottom:.75rem">${svg}</div>
       <span>${message}</span>
     </div>`;
 }
@@ -120,7 +136,7 @@ async function loadProducts(page = 1) {
     renderPagination(res.meta || { page: 1, total_pages: 1, total: 0 });
   } catch (err) {
     Toast.error('Error', err.message);
-    tbody.innerHTML = emptyState('Error al cargar productos', '⚠️');
+    tbody.innerHTML = emptyState('Error al cargar productos', 'warning');
   }
 }
 
@@ -144,10 +160,10 @@ function renderProducts(products) {
         : '<span class="badge badge-gray">' + (p.estado || '—') + '</span>';
 
     const variantBadge = p.tiene_variantes
-      ? `<span class="badge badge-yellow">${p.variantes_count || '—'} var</span>`
+      ? `<span class="badge badge-yellow" style="display:inline-flex;align-items:center;gap:4px">${ICONS.variantTiny} ${p.variantes_count || '—'}</span>`
       : '';
     const imgBadge = p.imagenes && p.imagenes.length
-      ? `<span class="badge badge-gray">${p.imagenes.length} 📷</span>`
+      ? `<span class="badge badge-gray" style="display:inline-flex;align-items:center;gap:4px">${ICONS.camera} ${p.imagenes.length}</span>`
       : '';
 
     return `
@@ -341,10 +357,10 @@ function buildModal() {
 
       // Tabs bar
       el('div', { className: 'modal-tabs', id: 'modal-tabs' }, [
-        tabBtn('general', '📋', 'General'),
-        tabBtn('precios', '💰', 'Precios'),
-        tabBtn('imagenes', '🖼️', 'Imágenes'),
-        tabBtn('variantes', '🔀', 'Variantes'),
+        tabBtn('general', 'general', 'General'),
+        tabBtn('precios', 'precios', 'Precios'),
+        tabBtn('imagenes', 'imagenes', 'Imágenes'),
+        tabBtn('variantes', 'variantes', 'Variantes'),
       ]),
 
       // Body
@@ -365,14 +381,15 @@ function buildModal() {
   document.body.appendChild(overlay);
 }
 
-function tabBtn(name, icon, label) {
+function tabBtn(name, iconKey, label) {
   const active = name === 'general' ? ' active' : '';
+  const svg = ICONS[iconKey] || '';
   return el('button', {
     className: `modal-tab-btn${active}`,
     'data-tab': name,
     onClick: () => switchTab(name),
   }, [
-    el('span', { textContent: icon, style: { marginRight: '.35rem' } }),
+    el('span', { innerHTML: svg, style: { marginRight: '.35rem', display: 'inline-flex', alignItems: 'center' } }),
     el('span', { textContent: label }),
   ]);
 }
@@ -694,7 +711,7 @@ async function loadProductImages(productId) {
     state.existingImages = res.data || [];
     renderExistingImages(state.existingImages);
   } catch (err) {
-    container.innerHTML = emptyState('Error al cargar imágenes', '⚠️');
+    container.innerHTML = emptyState('Error al cargar imágenes', 'warning');
   }
 }
 
@@ -705,7 +722,7 @@ function renderExistingImages(images) {
   if (badge) badge.textContent = `${images.length} foto${images.length !== 1 ? 's' : ''}`;
 
   if (!images.length) {
-    container.innerHTML = emptyState('Sin imágenes', '🖼️');
+    container.innerHTML = emptyState('Sin imágenes', 'imageEmpty');
     return;
   }
 
@@ -714,7 +731,7 @@ function renderExistingImages(images) {
     return `
       <div class="img-existing-item ${isPrincipal ? 'img-existing-item--principal' : ''}">
         <img src="${img.url}" alt="" loading="lazy">
-        ${isPrincipal ? '<div class="img-star-badge" title="Imagen principal">⭐</div>' : ''}
+        ${isPrincipal ? `<div class="img-star-badge" title="Imagen principal">${ICONS.star}</div>` : ''}
         <div class="img-hover-overlay">
           ${!isPrincipal ? `<button class="img-action-btn" onclick="handleSetPrincipal(${img.id})" title="Establecer como principal">
             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
@@ -874,7 +891,7 @@ async function loadVariants(productId) {
     const basePrice = state.editingProduct?.precio || 0;
     renderVariantsTable(state.existingVariants, basePrice);
   } catch (err) {
-    wrapper.innerHTML = emptyState('Error al cargar variantes', '⚠️');
+    wrapper.innerHTML = emptyState('Error al cargar variantes', 'warning');
   }
 }
 
@@ -884,7 +901,7 @@ function renderVariantsTable(variants, basePrice) {
   if (!wrapper) return;
 
   if (!variants.length) {
-    wrapper.innerHTML = emptyState('Sin variantes creadas', '🔀');
+    wrapper.innerHTML = emptyState('Sin variantes creadas', 'variantEmpty');
     if (actionsDiv) actionsDiv.style.display = 'none';
     return;
   }
