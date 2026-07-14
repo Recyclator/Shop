@@ -341,182 +341,161 @@ function closeModal() {
 }
 
 function switchTab(tabName) {
-  state.currentTab = tabName;
-  $$('.modal-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tabName));
-  $$('.modal-tab-panel').forEach(p => p.classList.toggle('active', p.dataset.tab === tabName));
+  // Tabs removed, unified layout used
 }
 
 function buildModal() {
   const overlay = el('div', { className: 'modal-overlay', id: 'product-modal', onClick(e) { if (e.target === this) closeModal(); } }, [
-    el('div', { className: 'modal modal--product' }, [
+    el('div', { className: 'modal modal--product', style: { maxWidth: '850px', width: '95vw' } }, [
       // Header
       el('div', { className: 'modal-header' }, [
         el('h2', { className: 'modal-title', id: 'modal-title', textContent: 'Producto' }),
         el('button', { className: 'modal-close', onClick: closeModal, innerHTML: '&times;' }),
       ]),
 
-      // Tabs bar
-      el('div', { className: 'modal-tabs', id: 'modal-tabs' }, [
-        tabBtn('general', 'general', 'General'),
-        tabBtn('precios', 'precios', 'Precios'),
-        tabBtn('imagenes', 'imagenes', 'Imágenes'),
-        tabBtn('variantes', 'variantes', 'Variantes'),
-      ]),
-
       // Body
-      el('div', { className: 'modal-body', id: 'modal-body' }, [
-        buildTabGeneral(),
-        buildTabPrecios(),
-        buildTabImagenes(),
-        buildTabVariantes(),
-      ]),
+      el('div', { className: 'modal-body', id: 'modal-body', style: { maxHeight: 'calc(90vh - 130px)', overflowY: 'auto', padding: '1.5rem' } }),
 
       // Footer
       el('div', { className: 'modal-footer' }, [
         el('button', { className: 'btn btn-secondary', onClick: closeModal, textContent: 'Cancelar' }),
-        el('button', { className: 'btn btn-primary', id: 'btn-save-product', onClick: saveProduct, textContent: 'Guardar' }),
+        el('button', { className: 'btn btn-primary', id: 'btn-save-product', onClick: saveProduct, textContent: 'Guardar Producto' }),
       ]),
     ]),
   ]);
+  
+  const body = overlay.querySelector('#modal-body');
+  body.innerHTML = `
+    <form id="product-form" onsubmit="return false" style="display:flex; flex-direction:column; gap:1.75rem;">
+      
+      <!-- Sección 1: Información General y Precios -->
+      <div class="modal-section-card">
+        <h3 class="modal-section-title">Información del Producto</h3>
+        
+        <div class="form-row">
+          <div class="form-group" style="flex:1">
+            <label class="form-label" for="prod-sku">SKU *</label>
+            <input type="text" id="prod-sku" class="form-input" placeholder="SKU-001" data-validate="required">
+          </div>
+          <div class="form-group" style="flex:2">
+            <label class="form-label" for="prod-nombre">Nombre *</label>
+            <input type="text" id="prod-nombre" class="form-input" placeholder="Nombre del producto" data-validate="required">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="prod-descripcion">Descripción</label>
+          <textarea id="prod-descripcion" class="form-input" rows="2" placeholder="Descripción corta del producto…" style="resize:vertical"></textarea>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group" style="flex:1">
+            <label class="form-label" for="prod-categoria">Categoría *</label>
+            <select id="prod-categoria" class="form-select" data-validate="required">
+              <option value="">Seleccionar…</option>
+            </select>
+          </div>
+          <div class="form-group" style="flex:1">
+            <label class="form-label" for="prod-estado">Estado</label>
+            <select id="prod-estado" class="form-select">
+              <option value="borrador">Borrador</option>
+              <option value="activo">Activo</option>
+              <option value="inactivo">Inactivo</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row" style="margin-top: 0.75rem; border-top: 1px dashed var(--border); padding-top: 1rem;">
+          <div class="form-group" style="flex:1">
+            <label class="form-label" for="prod-precio">Precio de Venta *</label>
+            <input type="number" id="prod-precio" class="form-input" min="0" step="1" placeholder="0" data-validate="required|number">
+          </div>
+          <div class="form-group" style="flex:1">
+            <label class="form-label" for="prod-precio-anterior">Precio anterior</label>
+            <input type="number" id="prod-precio-anterior" class="form-input" min="0" step="1" placeholder="0">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group" style="flex:1">
+            <label class="form-label" for="prod-costo">Costo de compra</label>
+            <input type="number" id="prod-costo" class="form-input" min="0" step="1" placeholder="0">
+          </div>
+          <div class="form-group" style="flex:1">
+            <label class="form-label" for="prod-stock-minimo">Stock mínimo</label>
+            <input type="number" id="prod-stock-minimo" class="form-input" min="0" step="1" value="5">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group" style="flex:1">
+            <label class="form-label" for="prod-stock">Stock total (se suma automáticamente de variantes)</label>
+            <input type="number" id="prod-stock" class="form-input" min="0" step="1" value="0">
+          </div>
+        </div>
+      </div>
+
+      <!-- Sección 2: Imágenes Principales -->
+      <div class="modal-section-card">
+        <h3 class="modal-section-title">Imágenes Principales</h3>
+        
+        <div class="img-upload-zone" id="img-upload-zone">
+          <input type="file" id="img-file-input" accept="image/*" multiple hidden>
+          <div class="img-upload-zone__content">
+            <svg width="32" height="32" fill="none" stroke="var(--text-mut)" stroke-width="1.5" viewBox="0 0 24 24">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            <p style="margin:.35rem 0 0; color:var(--text-sec); font-size:13px;">Arrastra imágenes del producto aquí o <span style="color:var(--accent); cursor:pointer; text-decoration:underline">selecciona archivos</span></p>
+            <span style="font-size:.7rem; color:var(--text-mut)">PNG, JPG, WEBP — máx. 5 MB</span>
+          </div>
+        </div>
+        
+        <div id="img-previews" class="img-preview-grid" style="margin-top:1rem"></div>
+        <div id="img-upload-actions" style="display:none; margin-top:.75rem; text-align:right">
+          <button type="button" class="btn btn-sm btn-secondary" onclick="clearSelectedImages()">Limpiar</button>
+          <button type="button" class="btn btn-sm btn-primary" onclick="uploadSelectedImages()" style="margin-left:.5rem">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right:.25rem"><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Subir
+          </button>
+        </div>
+
+        <div style="margin-top:1.25rem">
+          <h4 style="color:var(--text); margin:0 0 .75rem; display:flex; align-items:center; gap:.5rem; font-size:13px;">
+            Galería principal <span id="img-count-badge" class="badge badge-gray" style="font-size:.7rem">0 fotos</span>
+          </h4>
+          <div id="img-existing" class="img-existing-grid"></div>
+        </div>
+      </div>
+
+      <!-- Sección 3: Variantes -->
+      <div class="modal-section-card" id="modal-section-variants">
+        <h3 class="modal-section-title">Variantes del Producto</h3>
+        
+        <div id="variant-attrs-section">
+          <h4 style="color:var(--text); margin:0 0 .5rem; font-size:13px;">Atributos de la categoría</h4>
+          <div id="variant-attrs-container" style="margin-bottom:1rem"></div>
+          <button type="button" class="btn btn-sm btn-primary" id="btn-generate-variants" onclick="handleGenerateVariants()" style="margin-bottom:1.25rem">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right:.25rem"><path d="M12 5v14M5 12h14"/></svg>
+            Generar Variantes
+          </button>
+        </div>
+        
+        <div id="variants-table-wrapper"></div>
+        
+        <div id="variant-actions" style="display:none; margin-top:.75rem; display:flex; justify-content:flex-end; gap:.5rem">
+          <button type="button" class="btn btn-sm btn-primary" id="btn-bulk-save" onclick="handleBulkSave()">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right:.25rem"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg>
+            Guardar variantes
+          </button>
+        </div>
+      </div>
+
+    </form>
+  `;
+
   document.body.appendChild(overlay);
-}
-
-function tabBtn(name, iconKey, label) {
-  const active = name === 'general' ? ' active' : '';
-  const svg = ICONS[iconKey] || '';
-  return el('button', {
-    className: `modal-tab-btn${active}`,
-    'data-tab': name,
-    onClick: () => switchTab(name),
-  }, [
-    el('span', { innerHTML: svg, style: { marginRight: '.35rem', display: 'inline-flex', alignItems: 'center' } }),
-    el('span', { textContent: label }),
-  ]);
-}
-
-// --- Tab: General ---
-function buildTabGeneral() {
-  const panel = el('div', { className: 'modal-tab-panel active', 'data-tab': 'general', id: 'tab-general' });
-  panel.innerHTML = `
-    <form id="product-form" onsubmit="return false">
-      <div class="form-row">
-        <div class="form-group" style="flex:1">
-          <label class="form-label" for="prod-sku">SKU</label>
-          <input type="text" id="prod-sku" class="form-input" placeholder="SKU-001" data-validate="required">
-        </div>
-        <div class="form-group" style="flex:2">
-          <label class="form-label" for="prod-nombre">Nombre *</label>
-          <input type="text" id="prod-nombre" class="form-input" placeholder="Nombre del producto" data-validate="required">
-        </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label" for="prod-descripcion">Descripción</label>
-        <textarea id="prod-descripcion" class="form-input" rows="3" placeholder="Descripción del producto…" style="resize:vertical"></textarea>
-      </div>
-      <div class="form-row">
-        <div class="form-group" style="flex:1">
-          <label class="form-label" for="prod-categoria">Categoría</label>
-          <select id="prod-categoria" class="form-select" data-validate="required">
-            <option value="">Seleccionar…</option>
-          </select>
-        </div>
-        <div class="form-group" style="flex:1">
-          <label class="form-label" for="prod-estado">Estado</label>
-          <select id="prod-estado" class="form-select">
-            <option value="borrador">Borrador</option>
-            <option value="activo">Activo</option>
-            <option value="inactivo">Inactivo</option>
-          </select>
-        </div>
-      </div>
-    </form>`;
-  return panel;
-}
-
-// --- Tab: Precios ---
-function buildTabPrecios() {
-  const panel = el('div', { className: 'modal-tab-panel', 'data-tab': 'precios', id: 'tab-precios' });
-  panel.innerHTML = `
-    <div class="form-row">
-      <div class="form-group" style="flex:1">
-        <label class="form-label" for="prod-precio">Precio *</label>
-        <input type="number" id="prod-precio" class="form-input" min="0" step="1" placeholder="0" data-validate="required|number">
-      </div>
-      <div class="form-group" style="flex:1">
-        <label class="form-label" for="prod-precio-anterior">Precio anterior</label>
-        <input type="number" id="prod-precio-anterior" class="form-input" min="0" step="1" placeholder="0">
-      </div>
-    </div>
-    <div class="form-group">
-      <label class="form-label" for="prod-costo">Costo</label>
-      <input type="number" id="prod-costo" class="form-input" min="0" step="1" placeholder="0">
-    </div>
-    <div class="form-row">
-      <div class="form-group" style="flex:1">
-        <label class="form-label" for="prod-stock">Stock</label>
-        <input type="number" id="prod-stock" class="form-input" min="0" step="1" value="0">
-      </div>
-      <div class="form-group" style="flex:1">
-        <label class="form-label" for="prod-stock-minimo">Stock mínimo</label>
-        <input type="number" id="prod-stock-minimo" class="form-input" min="0" step="1" value="5">
-      </div>
-    </div>`;
-  return panel;
-}
-
-// --- Tab: Imágenes ---
-function buildTabImagenes() {
-  const panel = el('div', { className: 'modal-tab-panel', 'data-tab': 'imagenes', id: 'tab-imagenes' });
-  panel.innerHTML = `
-    <div class="img-upload-zone" id="img-upload-zone">
-      <input type="file" id="img-file-input" accept="image/*" multiple hidden>
-      <div class="img-upload-zone__content">
-        <svg width="40" height="40" fill="none" stroke="var(--text-mut)" stroke-width="1.5" viewBox="0 0 24 24">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-          <polyline points="17 8 12 3 7 8"/>
-          <line x1="12" y1="3" x2="12" y2="15"/>
-        </svg>
-        <p style="margin:.5rem 0 0;color:var(--text-sec)">Arrastra imágenes aquí o <span style="color:var(--accent);cursor:pointer;text-decoration:underline">selecciona archivos</span></p>
-        <span style="font-size:.75rem;color:var(--text-mut)">PNG, JPG, WEBP — máx. 5 MB</span>
-      </div>
-    </div>
-    <div id="img-previews" class="img-preview-grid" style="margin-top:1rem"></div>
-    <div id="img-upload-actions" style="display:none;margin-top:.75rem;text-align:right">
-      <button class="btn btn-sm btn-secondary" onclick="clearSelectedImages()">Limpiar</button>
-      <button class="btn btn-sm btn-primary" onclick="uploadSelectedImages()" style="margin-left:.5rem">
-        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right:.25rem"><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-        Subir
-      </button>
-    </div>
-    <div style="margin-top:1.25rem">
-      <h4 style="color:var(--text);margin:0 0 .75rem;display:flex;align-items:center;gap:.5rem">
-        Imágenes del producto <span id="img-count-badge" class="badge badge-gray" style="font-size:.7rem">0 fotos</span>
-      </h4>
-      <div id="img-existing" class="img-existing-grid"></div>
-    </div>`;
-  return panel;
-}
-
-// --- Tab: Variantes ---
-function buildTabVariantes() {
-  const panel = el('div', { className: 'modal-tab-panel', 'data-tab': 'variantes', id: 'tab-variantes' });
-  panel.innerHTML = `
-    <div id="variant-attrs-section">
-      <h4 style="color:var(--text);margin:0 0 .75rem">Atributos de la categoría</h4>
-      <div id="variant-attrs-container" style="margin-bottom:1rem"></div>
-      <button class="btn btn-sm btn-primary" id="btn-generate-variants" onclick="handleGenerateVariants()" style="margin-bottom:1.25rem">
-        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right:.25rem"><path d="M12 5v14M5 12h14"/></svg>
-        Generar Variantes
-      </button>
-    </div>
-    <div id="variants-table-wrapper"></div>
-    <div id="variant-actions" style="display:none;margin-top:.75rem;display:flex;justify-content:flex-end;gap:.5rem">
-      <button class="btn btn-sm btn-primary" id="btn-bulk-save" onclick="handleBulkSave()">
-        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right:.25rem"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg>
-        Guardar todo
-      </button>
-    </div>`;
-  return panel;
 }
 
 
@@ -903,72 +882,121 @@ function renderVariantsTable(variants, basePrice) {
   if (!variants.length) {
     wrapper.innerHTML = emptyState('Sin variantes creadas', 'variantEmpty');
     if (actionsDiv) actionsDiv.style.display = 'none';
+    $('#prod-stock').disabled = false;
     return;
   }
+
+  $('#prod-stock').disabled = true;
 
   if (actionsDiv) actionsDiv.style.display = 'flex';
 
   let totalStock = 0;
-  const rows = variants.map((v, i) => {
+  const cardsHTML = variants.map((v, i) => {
     const attrChips = (v.atributos || []).map(a => {
       const color = chipColor(a.atributo_nombre || a.nombre || '');
-      return `<span class="variant-chip" style="background:${color}">${esc(a.valor || a.value || '')}</span>`;
+      return `<span class="variant-chip" style="background:${color}; font-size: 11px; padding: 2px 8px; border-radius: 12px; font-weight: 600; color: #fff; margin-right: 4px;">${esc(a.atributo_nombre || a.nombre || '')}: ${esc(a.valor || a.value || '')}</span>`;
     }).join('');
 
     const stock = Number(v.stock) || 0;
     totalStock += stock;
-    const active = v.activo !== false;
+    const active = v.activa !== false && v.activo !== false;
+    const images = v.imagen ? v.imagen.split(';').filter(x => x) : [];
+    
+    let imgThumbnails = '';
+    if (images.length > 0) {
+      imgThumbnails = images.map((url, imgIdx) => `
+        <div class="var-img-thumbnail" style="position:relative; width:60px; height:60px; border-radius:8px; overflow:hidden; border:1px solid var(--border); background:var(--bg-surf);">
+          <img src="${url}" style="width:100%; height:100%; object-fit:cover;">
+          <button type="button" class="var-img-remove-btn" onclick="handleRemoveVariantImage(${v.id}, ${imgIdx})" style="position:absolute; top:2px; right:2px; background:rgba(0,0,0,0.7); color:#fff; border:none; width:18px; height:18px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; cursor:pointer; line-height: 1;" title="Eliminar imagen">&times;</button>
+        </div>
+      `).join('');
+    } else {
+      imgThumbnails = `<div style="font-size:11px; color:var(--text-mut); font-style: italic;">Sin imágenes</div>`;
+    }
 
     return `
-      <tr data-variant-id="${v.id}" data-index="${i}">
-        <td>${attrChips || '—'}</td>
-        <td>
-          <input type="number" class="form-input form-input--sm var-precio"
-                 value="${v.precio ?? basePrice ?? ''}" min="0" step="1"
-                 style="width:100px">
-        </td>
-        <td>
-          <input type="number" class="form-input form-input--sm var-stock"
-                 value="${stock}" min="0" step="1" style="width:80px">
-        </td>
-        <td>
-          <label class="toggle-switch">
-            <input type="checkbox" class="var-activo" ${active ? 'checked' : ''}>
-            <span class="toggle-slider"></span>
-          </label>
-        </td>
-        <td>
-          <button class="action-btn" title="Eliminar variante" onclick="handleDeleteVariant(${v.id})">
-            <svg width="14" height="14" fill="none" stroke="var(--danger)" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      <div class="variant-card" data-variant-id="${v.id}" data-index="${i}" data-image-urls="${esc(v.imagen || '')}" style="border:1px solid var(--border); border-radius:12px; background:var(--bg-elev); margin-bottom:1.25rem; padding:1.25rem; display:flex; flex-direction:column; gap:1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.04);">
+        
+        <!-- Header -->
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:0.75rem;">
+          <div style="display:flex; flex-wrap:wrap; gap:0.25rem; align-items:center;">
+            ${attrChips || '<span class="variant-chip" style="background:#4b5563; font-size: 11px; padding: 2px 8px; border-radius: 12px; font-weight: 600; color: #fff;">General</span>'}
+          </div>
+          <button type="button" class="btn btn-sm btn-link" style="color:var(--danger); padding:0; display:flex; align-items:center; gap:4px; font-size:12px; text-decoration:none;" onclick="handleDeleteVariant(${v.id})" title="Eliminar variante">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            Eliminar
           </button>
-        </td>
-      </tr>`;
+        </div>
+
+        <!-- Body -->
+        <div style="display:flex; flex-wrap:wrap; gap:1.5rem;">
+          
+          <!-- Image Section (Left) -->
+          <div style="flex:1; min-width:220px; display:flex; flex-direction:column; gap:0.75rem; border-right:1px solid var(--border); padding-right:1.25rem;">
+            <label class="form-label" style="font-size:11px; font-weight:700; color:var(--text-sec); letter-spacing:0.05em;">IMÁGENES DE VARIANTE</label>
+            <div style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center;">
+              ${imgThumbnails}
+              <button type="button" onclick="$('#var-file-input-${v.id}').click()" style="width:60px; height:60px; border-radius:8px; border:2px dashed var(--border); background:var(--bg-surf); display:flex; align-items:center; justify-content:center; color:var(--text-mut); cursor:pointer; transition: all 0.2s;" onmouseover="this.style.borderColor='var(--accent)';" onmouseout="this.style.borderColor='var(--border)';" title="Subir imagen">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              </button>
+              <input type="file" id="var-file-input-${v.id}" accept="image/*" multiple style="display:none;" onchange="handleUploadVariantImages(this, ${v.id})">
+            </div>
+          </div>
+
+          <!-- Fields Section (Right) -->
+          <div style="flex:2; min-width:320px; display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+            
+            <div class="form-group" style="margin:0;">
+              <label class="form-label" style="font-size:11px; margin-bottom:4px; font-weight:600;">SKU *</label>
+              <input type="text" class="form-input form-input--sm var-sku" value="${v.sku || ''}" placeholder="SKU de variante" required>
+            </div>
+
+            <div class="form-group" style="margin:0;">
+              <label class="form-label" style="font-size:11px; margin-bottom:4px; font-weight:600;">Código de barras</label>
+              <input type="text" class="form-input form-input--sm var-barcode" value="${v.barcode || ''}" placeholder="EAN / UPC / SKU">
+            </div>
+
+            <div class="form-group" style="margin:0;">
+              <label class="form-label" style="font-size:11px; margin-bottom:4px; font-weight:600;">Precio de venta</label>
+              <input type="number" class="form-input form-input--sm var-precio" value="${v.precio_override || v.precio || basePrice || ''}" min="0" step="1">
+            </div>
+
+            <div class="form-group" style="margin:0;">
+              <label class="form-label" style="font-size:11px; margin-bottom:4px; font-weight:600;">Stock disponible</label>
+              <input type="number" class="form-input form-input--sm var-stock" value="${stock}" min="0" step="1">
+            </div>
+
+            <div style="grid-column: 1 / -1; display:flex; justify-content:space-between; align-items:center; margin-top:0.25rem;">
+              <div style="display:flex; align-items:center; gap:0.5rem;">
+                <label class="toggle-switch">
+                  <input type="checkbox" class="var-activo" ${active ? 'checked' : ''}>
+                  <span class="toggle-slider"></span>
+                </label>
+                <span style="font-size:12px; font-weight:600; color:var(--text-sec);">Variante activa</span>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+    `;
   }).join('');
 
   wrapper.innerHTML = `
-    <div style="overflow-x:auto">
-      <table class="variants-table" id="variants-table">
-        <thead>
-          <tr>
-            <th>Atributos</th>
-            <th>Precio</th>
-            <th>Stock</th>
-            <th>Activo</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-        <tfoot>
-          <tr>
-            <td style="font-weight:600;color:var(--text)">Total</td>
-            <td></td>
-            <td style="font-weight:600;color:var(--accent)">${fmt.number(totalStock)}</td>
-            <td></td>
-            <td></td>
-          </tr>
-        </tfoot>
-      </table>
-    </div>`;
+    <div style="margin-top:1rem;">
+      <h4 style="margin-bottom:0.75rem; color:var(--text); display:flex; justify-content:space-between; align-items:center;">
+        <span>Lista de Variantes</span>
+        <span style="font-size:12px; color:var(--text-sec); background:var(--bg-surf); padding:4px 10px; border-radius:16px; border:1px solid var(--border);">Stock Total: <b>${totalStock}</b></span>
+      </h4>
+      <div id="variants-list-container">
+        ${cardsHTML}
+      </div>
+    </div>
+  `;
+
+  $('#prod-stock').value = totalStock;
 }
 
 /** Generate a pastel background color deterministically from a string */
@@ -979,16 +1007,67 @@ function chipColor(str) {
   return `hsl(${h}, 55%, 25%)`;
 }
 
+async function handleUploadVariantImages(fileInput, variantId) {
+  if (!fileInput.files.length) return;
+  
+  const formData = new FormData();
+  for (const file of fileInput.files) {
+    formData.append('images', file);
+  }
+
+  fileInput.disabled = true;
+  
+  try {
+    await apiUpload(`/products/${state.editingProduct.id}/variants/${variantId}/images`, formData);
+    Toast.success('Éxito', 'Imágenes subidas para la variante');
+    loadVariants(state.editingProduct.id);
+  } catch (err) {
+    Toast.error('Error', err.message);
+  } finally {
+    fileInput.disabled = false;
+    fileInput.value = '';
+  }
+}
+
+async function handleRemoveVariantImage(variantId, imageIndex) {
+  const variant = state.existingVariants.find(v => v.id === variantId);
+  if (!variant) return;
+
+  const confirmed = await window.confirmDelete({
+    title: 'Eliminar imagen',
+    message: '¿Estás seguro de que deseas eliminar esta imagen de la variante?',
+  });
+  if (!confirmed) return;
+
+  const images = variant.imagen ? variant.imagen.split(';').filter(x => x) : [];
+  images.splice(imageIndex, 1);
+  const newImageString = images.join(';');
+
+  try {
+    await api(`/products/${state.editingProduct.id}/variants/${variantId}`, {
+      method: 'PUT',
+      json: { imagen: newImageString }
+    });
+    Toast.success('Éxito', 'Imagen eliminada de la variante');
+    loadVariants(state.editingProduct.id);
+  } catch (err) {
+    Toast.error('Error', err.message);
+  }
+}
+
 async function handleBulkSave() {
   if (!state.editingProduct) return;
-  const rows = $$('#variants-table tbody tr');
-  if (!rows.length) return;
+  const cards = $$('#variants-list-container .variant-card');
+  if (!cards.length) return;
 
-  const variantes = rows.map(row => ({
-    id: Number(row.dataset.variantId),
-    precio: Number($('.var-precio', row).value) || 0,
-    stock: Number($('.var-stock', row).value) || 0,
-    activo: $('.var-activo', row).checked,
+  const variantes = cards.map(card => ({
+    id: Number(card.dataset.variantId),
+    sku: $('.var-sku', card).value.trim(),
+    barcode: $('.var-barcode', card).value.trim(),
+    precio_override: Number($('.var-precio', card).value) || 0,
+    stock: Number($('.var-stock', card).value) || 0,
+    imagen: card.dataset.imageUrls || '',
+    activa: $('.var-activo', card).checked,
   }));
 
   const btn = $('#btn-bulk-save');
@@ -998,7 +1077,7 @@ async function handleBulkSave() {
   try {
     await api(`/products/${state.editingProduct.id}/variants/bulk`, {
       method: 'PUT',
-      json: { variantes },
+      json: { variants: variantes },
     });
     Toast.success('Variantes', 'Variantes actualizadas correctamente');
     loadVariants(state.editingProduct.id);
@@ -1006,7 +1085,7 @@ async function handleBulkSave() {
     Toast.error('Error', err.message);
   } finally {
     btn.disabled = false;
-    btn.innerHTML = `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right:.25rem"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg> Guardar todo`;
+    btn.innerHTML = `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right:.25rem"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg> Guardar variantes`;
   }
 }
 
@@ -1047,25 +1126,42 @@ function injectStyles() {
     }
 
     /* ---- Modal sizing ---- */
-    .modal--product { max-width: 720px; width: 95vw; }
+    .modal--product { max-width: 850px; width: 95vw; }
 
-    /* ---- Tabs ---- */
-    .modal-tabs {
-      display: flex; gap: 0; border-bottom: 1px solid var(--border);
-      padding: 0 1.25rem; overflow-x: auto;
+    /* ---- Section Cards ---- */
+    .modal-section-card {
+      background: var(--bg-elev);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
     }
-    .modal-tab-btn {
-      background: none; border: none; color: var(--text-sec); cursor: pointer;
-      padding: .65rem 1rem; font-size: .85rem; font-weight: 500;
-      border-bottom: 2px solid transparent; transition: all .2s;
-      white-space: nowrap; display: flex; align-items: center;
+    .modal-section-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-top: 0;
+      margin-bottom: 1.25rem;
+      padding-left: 0.75rem;
+      border-left: 3px solid var(--accent);
+      line-height: 1.2;
     }
-    .modal-tab-btn:hover { color: var(--text); }
-    .modal-tab-btn.active {
-      color: var(--accent); border-bottom-color: var(--accent);
+    .variant-card {
+      transition: all 0.2s ease;
     }
-    .modal-tab-panel { display: none; }
-    .modal-tab-panel.active { display: block; }
+    .variant-card:hover {
+      border-color: var(--accent) !important;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+    }
+    .var-img-thumbnail img {
+      transition: transform 0.2s ease;
+    }
+    .var-img-thumbnail:hover img {
+      transform: scale(1.1);
+    }
+    .var-img-remove-btn:hover {
+      background: var(--danger) !important;
+    }
 
     /* ---- Form helpers ---- */
     .form-input--sm { padding: .35rem .5rem; font-size: .8rem; }

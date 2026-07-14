@@ -50,6 +50,7 @@ type ProductVariant struct {
 	ID             uint           `gorm:"primaryKey" json:"id"`
 	ProductoID     uint           `gorm:"index;not null" json:"producto_id"`
 	SKU            string         `gorm:"size:50;not null;uniqueIndex" json:"sku"`
+	Barcode        string         `gorm:"size:255" json:"barcode"`
 	Nombre         string         `gorm:"size:255" json:"nombre"`
 	PrecioOverride float64        `json:"precio_override"`
 	Stock          int            `gorm:"default:0" json:"stock"`
@@ -86,6 +87,7 @@ type UpdateAttributeInput struct {
 
 type CreateVariantInput struct {
 	SKU            string                  `json:"sku"`
+	Barcode        string                  `json:"barcode"`
 	Nombre         string                  `json:"nombre"`
 	PrecioOverride float64                 `json:"precio_override"`
 	Stock          int                     `json:"stock"`
@@ -100,11 +102,13 @@ type VariantAttributeInput struct {
 }
 
 type UpdateVariantInput struct {
+	SKU            string   `json:"sku"`
+	Barcode        string   `json:"barcode"`
 	Nombre         string   `json:"nombre"`
 	PrecioOverride *float64 `json:"precio_override"`
 	Stock          *int     `json:"stock"`
 	StockMinimo    int      `json:"stock_minimo"`
-	Imagen         string   `json:"imagen"`
+	Imagen         *string  `json:"imagen"`
 	Activa         *bool    `json:"activa"`
 }
 
@@ -112,6 +116,7 @@ type VariantResponse struct {
 	ID             uint                    `json:"id"`
 	ProductoID     uint                    `json:"producto_id"`
 	SKU            string                  `json:"sku"`
+	Barcode        string                  `json:"barcode"`
 	Nombre         string                  `json:"nombre"`
 	PrecioOverride float64                 `json:"precio_override"`
 	PrecioFinal    float64                 `json:"precio_final"`
@@ -131,6 +136,7 @@ func (pv *ProductVariant) ToResponse(basePrice float64) VariantResponse {
 		ID:             pv.ID,
 		ProductoID:     pv.ProductoID,
 		SKU:            pv.SKU,
+		Barcode:        pv.Barcode,
 		Nombre:         pv.Nombre,
 		PrecioOverride: pv.PrecioOverride,
 		PrecioFinal:    precioFinal,

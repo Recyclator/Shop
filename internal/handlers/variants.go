@@ -77,6 +77,7 @@ func CreateVariant(c *fiber.Ctx) error {
 	variant := models.ProductVariant{
 		ProductoID:     product.ID,
 		SKU:            sku,
+		Barcode:        input.Barcode,
 		Nombre:         nombre,
 		PrecioOverride: input.PrecioOverride,
 		Stock:          input.Stock,
@@ -165,6 +166,12 @@ func UpdateVariant(c *fiber.Ctx) error {
 	}
 
 	updates := make(map[string]interface{})
+	if input.SKU != "" {
+		updates["sku"] = input.SKU
+	}
+	if input.Barcode != "" {
+		updates["barcode"] = input.Barcode
+	}
 	if input.Nombre != "" {
 		updates["nombre"] = input.Nombre
 	}
@@ -181,8 +188,8 @@ func UpdateVariant(c *fiber.Ctx) error {
 	if input.StockMinimo > 0 {
 		updates["stock_minimo"] = input.StockMinimo
 	}
-	if input.Imagen != "" {
-		updates["imagen"] = input.Imagen
+	if input.Imagen != nil {
+		updates["imagen"] = *input.Imagen
 	}
 	if input.Activa != nil {
 		updates["activa"] = *input.Activa

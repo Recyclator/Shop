@@ -57,6 +57,7 @@ func Setup(app *fiber.App) {
 	products.Delete("/:id/variants/:var_id", middleware.RequirePermissionAny("products.delete"), handlers.DeleteVariant)
 	products.Post("/:id/variants/generate", middleware.RequirePermissionAny("products.create"), handlers.GenerateVariants)
 	products.Put("/:id/variants/bulk", middleware.RequirePermissionAny("products.update"), handlers.BulkUpdateVariants)
+	products.Post("/:id/variants/:var_id/images", middleware.RequirePermissionAny("products.update"), handlers.UploadVariantImages)
 
 	// ========== PRODUCT IMAGES ==========
 	products.Get("/:id/images", middleware.RequirePermissionAny("products.read"), handlers.GetProductImages)

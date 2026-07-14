@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -103,6 +104,81 @@ func UploadProductImages(c *fiber.Ctx) error {
 	}
 
 	return utils.Success(c, fiber.StatusCreated, fmt.Sprintf("%d imágenes subidas", len(savedImages)), savedImages)
+}
+
+// UploadVariantImages handles multiple image uploads for a product variant
+// POST /api/products/:id/variants/:var_id/images
+func UploadVariantImages(c *fiber.Ctx) error {
+	currentUser := middleware.GetUser(c)
+	if currentUser == nil {
+		return utils.ErrorWithCode(c, fiber.StatusUnauthorized, "UNAUTHORIZED", "no autorizado")
+	}
+
+	if !currentUser.HasPermission("products.update") {
+		return utils.ErrorWithCode(c, fiber.StatusForbidden, "FORBIDDEN", "no tienes permiso")
+	}
+
+	productID, err := c.ParamsInt("id")
+	if err != nil {
+		return utils.ErrorWithCode(c, fiber.StatusBadRequest, "INVALID_ID", "ID de producto inválido")
+	}
+
+	varID, err := c.ParamsInt("var_id")
+	if err != nil {
+		return utils.ErrorWithCode(c, fiber.StatusBadRequest, "INVALID_ID", "ID de variante inválido")
+	}
+
+	var variant models.ProductVariant
+	if result := database.DB.Where("id = ? AND producto_id = ?", varID, productID).First(&variant); result.Error != nil {
+		return utils.ErrorWithCode(c, fiber.StatusNotFound, "NOT_FOUND", "variante no encontrada")
+	}
+
+	form, err := c.MultipartForm()
+	if err != nil {
+		return utils.ErrorWithCode(c, fiber.StatusBadRequest, "INVALID_FORM", "error al procesar formulario")
+	}
+
+	files := form.File["images"]
+	if len(files) == 0 {
+		return utils.ErrorWithCode(c, fiber.StatusBadRequest, "NO_FILES", "no se enviaron imágenes")
+	}
+
+	uploadDir := "./static/uploads/variants"
+	os.MkdirAll(uploadDir, os.ModePerm)
+
+	var savedURLs []string
+	for i, file := range files {
+		ext := filepath.Ext(file.Filename)
+		allowedExts := map[string]bool{".jpg": true, ".jpeg": true, ".png": true, ".webp": true, ".gif": true}
+		if !allowedExts[ext] {
+			continue
+		}
+
+		filename := fmt.Sprintf("%d_%d_%d%s", varID, time.Now().UnixNano(), i, ext)
+		filePath := filepath.Join(uploadDir, filename)
+
+		if err := c.SaveFile(file, filePath); err != nil {
+			continue
+		}
+
+		savedURLs = append(savedURLs, "/static/uploads/variants/"+filename)
+	}
+
+	if len(savedURLs) == 0 {
+		return utils.ErrorWithCode(c, fiber.StatusBadRequest, "NO_SAVED", "no se pudo guardar ninguna imagen")
+	}
+
+	existing := variant.Imagen
+	var finalURLs []string
+	if existing != "" {
+		finalURLs = strings.Split(existing, ";")
+	}
+	finalURLs = append(finalURLs, savedURLs...)
+	variant.Imagen = strings.Join(finalURLs, ";")
+
+	database.DB.Model(&variant).Update("imagen", variant.Imagen)
+
+	return utils.Success(c, fiber.StatusOK, "imágenes de variante subidas", finalURLs)
 }
 
 // GetProductImages returns all images for a product
@@ -401,8 +477,11 @@ func BulkUpdateVariants(c *fiber.Ctx) error {
 
 	type BulkVariantUpdate struct {
 		ID             uint     `json:"id"`
+		SKU            string   `json:"sku"`
+		Barcode        string   `json:"barcode"`
 		PrecioOverride *float64 `json:"precio_override"`
 		Stock          *int     `json:"stock"`
+		Imagen         *string  `json:"imagen"`
 		Activa         *bool    `json:"activa"`
 	}
 
@@ -416,11 +495,20 @@ func BulkUpdateVariants(c *fiber.Ctx) error {
 	updated := 0
 	for _, v := range input.Variants {
 		updates := make(map[string]interface{})
+		if v.SKU != "" {
+			updates["sku"] = v.SKU
+		}
+		if v.Barcode != "" {
+			updates["barcode"] = v.Barcode
+		}
 		if v.PrecioOverride != nil {
 			updates["precio_override"] = *v.PrecioOverride
 		}
 		if v.Stock != nil {
 			updates["stock"] = *v.Stock
+		}
+		if v.Imagen != nil {
+			updates["imagen"] = *v.Imagen
 		}
 		if v.Activa != nil {
 			updates["activa"] = *v.Activa
