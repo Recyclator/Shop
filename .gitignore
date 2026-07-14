@@ -14,3 +14,5 @@ bin/
 node_modules/
 package-lock.json
 public/
+# Local Pi runtime state
+.atl/
