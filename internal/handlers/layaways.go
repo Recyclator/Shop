@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -8,6 +9,8 @@ import (
 	"github.com/nexora/backend/internal/middleware"
 	"github.com/nexora/backend/internal/models"
 	"github.com/nexora/backend/internal/utils"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // GetLayaways obtiene la lista de separados con paginación y filtros
@@ -46,7 +49,14 @@ func GetLayaways(c *fiber.Ctx) error {
 		query = query.Where("estado = ?", estado)
 	}
 
-	if customerID > 0 {
+	currentUser := middleware.GetUser(c)
+	if currentUser != nil && currentUser.GetHighestRoleLevel() > 20 {
+		var customer models.Customer
+		if err := database.DB.Where("email = ?", currentUser.Email).First(&customer).Error; err != nil {
+			return utils.Paginated(c, fiber.StatusOK, []models.LayawayResponse{}, page, limit, 0)
+		}
+		query = query.Where("customer_id = ?", customer.ID)
+	} else if customerID > 0 {
 		query = query.Where("customer_id = ?", customerID)
 	}
 
@@ -86,6 +96,14 @@ func GetLayawayByID(c *fiber.Ctx) error {
 		return utils.ErrorWithCode(c, fiber.StatusNotFound, "NOT_FOUND", "separado no encontrado")
 	}
 
+	currentUser := middleware.GetUser(c)
+	if currentUser != nil && currentUser.GetHighestRoleLevel() > 20 {
+		var customer models.Customer
+		if err := database.DB.Where("email = ?", currentUser.Email).First(&customer).Error; err != nil || layaway.CustomerID != customer.ID {
+			return utils.ErrorWithCode(c, fiber.StatusForbidden, "FORBIDDEN", "no tienes permiso para ver este separado")
+		}
+	}
+
 	return utils.SuccessData(c, fiber.StatusOK, layaway.ToResponse())
 }
 
@@ -117,10 +135,24 @@ func CreateLayaway(c *fiber.Ctx) error {
 		return utils.ErrorWithCode(c, fiber.StatusNotFound, "CUSTOMER_NOT_FOUND", "cliente no encontrado")
 	}
 
-	// Verificar que el producto existe y obtener su precio
+	// IDOR check: si es cliente, solo puede crear separados a su propio nombre
+	if currentUser.GetHighestRoleLevel() > 20 && customer.Email != currentUser.Email {
+		return utils.ErrorWithCode(c, fiber.StatusForbidden, "FORBIDDEN", "no puedes crear separados para otro cliente")
+	}
+
+	tx := database.DB.Begin()
+
+	// Verificar que el producto existe y bloquear fila con SELECT FOR UPDATE para prevenir race conditions
 	var product models.Product
-	if result := database.DB.First(&product, input.ProductID); result.Error != nil {
+	if result := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&product, input.ProductID); result.Error != nil {
+		tx.Rollback()
 		return utils.ErrorWithCode(c, fiber.StatusNotFound, "PRODUCT_NOT_FOUND", "producto no encontrado")
+	}
+
+	// Validar stock disponible
+	if product.ControlaInventario && product.Stock < input.Cantidad && !product.PermiteStockNegativo {
+		tx.Rollback()
+		return utils.ErrorWithCode(c, fiber.StatusBadRequest, "INSUFFICIENT_STOCK", fmt.Sprintf("stock insuficiente para separar este producto (disponible: %d)", product.Stock))
 	}
 
 	// Calcular precio total
@@ -128,7 +160,16 @@ func CreateLayaway(c *fiber.Ctx) error {
 
 	// Validar que el abono inicial no sea mayor al total
 	if input.AbonoInicial > precioTotal {
+		tx.Rollback()
 		return utils.ErrorWithCode(c, fiber.StatusBadRequest, "INVALID_INITIAL_PAYMENT", "el abono inicial no puede ser mayor al precio total")
+	}
+
+	// Reservar inventario
+	if product.ControlaInventario {
+		if err := tx.Model(&product).Update("stock", gorm.Expr("stock - ?", input.Cantidad)).Error; err != nil {
+			tx.Rollback()
+			return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "STOCK_ERROR", "error al reservar stock del producto")
+		}
 	}
 
 	// Calcular saldo pendiente
@@ -148,9 +189,6 @@ func CreateLayaway(c *fiber.Ctx) error {
 		Estado:           "activo",
 		SaldoPendiente:   saldoPendiente,
 	}
-
-	// Crear el registrado el abono inicial como primer pago si es mayor a 0
-	tx := database.DB.Begin()
 
 	if result := tx.Create(&layaway); result.Error != nil {
 		tx.Rollback()
@@ -188,7 +226,7 @@ func AddPayment(c *fiber.Ctx) error {
 		return utils.ErrorWithCode(c, fiber.StatusUnauthorized, "UNAUTHORIZED", "no autorizado")
 	}
 
-	if !currentUser.HasPermission("layaways.update") {
+	if !currentUser.HasPermission("layaways.payment") && !currentUser.HasPermission("layaways.update") {
 		return utils.ErrorWithCode(c, fiber.StatusForbidden, "FORBIDDEN", "no tienes permiso para registrar abonos")
 	}
 
@@ -200,6 +238,14 @@ func AddPayment(c *fiber.Ctx) error {
 	var layaway models.Layaway
 	if result := database.DB.First(&layaway, id); result.Error != nil {
 		return utils.ErrorWithCode(c, fiber.StatusNotFound, "NOT_FOUND", "separado no encontrado")
+	}
+
+	// IDOR check: si es cliente, solo puede abonar a sus propios separados
+	if currentUser.GetHighestRoleLevel() > 20 {
+		var customer models.Customer
+		if err := database.DB.Where("email = ?", currentUser.Email).First(&customer).Error; err != nil || layaway.CustomerID != customer.ID {
+			return utils.ErrorWithCode(c, fiber.StatusForbidden, "FORBIDDEN", "no tienes permiso para abonar a este separado")
+		}
 	}
 
 	// Verificar que el separado esté activo
@@ -289,6 +335,14 @@ func GetLayawayPayments(c *fiber.Ctx) error {
 	var layaway models.Layaway
 	if result := database.DB.First(&layaway, id); result.Error != nil {
 		return utils.ErrorWithCode(c, fiber.StatusNotFound, "NOT_FOUND", "separado no encontrado")
+	}
+
+	currentUser := middleware.GetUser(c)
+	if currentUser != nil && currentUser.GetHighestRoleLevel() > 20 {
+		var customer models.Customer
+		if err := database.DB.Where("email = ?", currentUser.Email).First(&customer).Error; err != nil || layaway.CustomerID != customer.ID {
+			return utils.ErrorWithCode(c, fiber.StatusForbidden, "FORBIDDEN", "no tienes permiso para ver los abonos de este separado")
+		}
 	}
 
 	var payments []models.Payment
@@ -385,6 +439,14 @@ func CancelLayaway(c *fiber.Ctx) error {
 		return utils.ErrorWithCode(c, fiber.StatusNotFound, "NOT_FOUND", "separado no encontrado")
 	}
 
+	// IDOR check: si es cliente, solo puede cancelar sus propios separados
+	if currentUser.GetHighestRoleLevel() > 20 {
+		var customer models.Customer
+		if err := database.DB.Where("email = ?", currentUser.Email).First(&customer).Error; err != nil || layaway.CustomerID != customer.ID {
+			return utils.ErrorWithCode(c, fiber.StatusForbidden, "FORBIDDEN", "no tienes permiso para cancelar este separado")
+		}
+	}
+
 	if layaway.Estado == "pagado" {
 		return utils.ErrorWithCode(c, fiber.StatusBadRequest, "ALREADY_PAID", "el separado ya está pagado")
 	}
@@ -393,8 +455,24 @@ func CancelLayaway(c *fiber.Ctx) error {
 		return utils.ErrorWithCode(c, fiber.StatusBadRequest, "ALREADY_CANCELLED", "el separado ya está cancelado")
 	}
 
-	if result := database.DB.Model(&layaway).Update("estado", "cancelado"); result.Error != nil {
+	tx := database.DB.Begin()
+
+	if result := tx.Model(&layaway).Update("estado", "cancelado"); result.Error != nil {
+		tx.Rollback()
 		return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "UPDATE_ERROR", "error al cancelar el separado")
+	}
+
+	// Restaurar inventario reservado
+	var product models.Product
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&product, layaway.ProductID).Error; err == nil && product.ControlaInventario {
+		if err := tx.Model(&product).Update("stock", gorm.Expr("stock + ?", layaway.Cantidad)).Error; err != nil {
+			tx.Rollback()
+			return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "STOCK_ERROR", "error al restaurar stock del producto")
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "DB_ERROR", "error al confirmar cancelación")
 	}
 
 	database.DB.Preload("Customer").Preload("Product").First(&layaway, layaway.ID)
@@ -402,7 +480,7 @@ func CancelLayaway(c *fiber.Ctx) error {
 	return utils.Success(c, fiber.StatusOK, "separado cancelado exitosamente", layaway.ToResponse())
 }
 
-// ExpiredLayaways marca los separados vencidos
+// ExpiredLayaways marca los separados vencidos y restaura su inventario
 // POST /api/layaways/check-expired
 func ExpiredLayaways(c *fiber.Ctx) error {
 	currentUser := middleware.GetUser(c)
@@ -416,12 +494,31 @@ func ExpiredLayaways(c *fiber.Ctx) error {
 
 	now := time.Now()
 
-	result := database.DB.Model(&models.Layaway{}).
+	tx := database.DB.Begin()
+	var expiredLayaways []models.Layaway
+	if err := tx.Where("estado = ? AND fecha_vencimiento < ?", "activo", now).Find(&expiredLayaways).Error; err != nil {
+		tx.Rollback()
+		return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "UPDATE_ERROR", "error al buscar separados vencidos")
+	}
+
+	for _, lay := range expiredLayaways {
+		var product models.Product
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&product, lay.ProductID).Error; err == nil && product.ControlaInventario {
+			_ = tx.Model(&product).Update("stock", gorm.Expr("stock + ?", lay.Cantidad)).Error
+		}
+	}
+
+	result := tx.Model(&models.Layaway{}).
 		Where("estado = ? AND fecha_vencimiento < ?", "activo", now).
 		Update("estado", "vencido")
 
 	if result.Error != nil {
+		tx.Rollback()
 		return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "UPDATE_ERROR", "error al verificar separados vencidos")
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "DB_ERROR", "error al confirmar verificación")
 	}
 
 	return utils.Success(c, fiber.StatusOK, "verificación completada", fiber.Map{
@@ -451,9 +548,24 @@ func DeleteLayaway(c *fiber.Ctx) error {
 		return utils.ErrorWithCode(c, fiber.StatusNotFound, "NOT_FOUND", "separado no encontrado")
 	}
 
+	tx := database.DB.Begin()
+
+	// Si estaba activo, devolver inventario
+	if layaway.Estado == "activo" {
+		var product models.Product
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&product, layaway.ProductID).Error; err == nil && product.ControlaInventario {
+			_ = tx.Model(&product).Update("stock", gorm.Expr("stock + ?", layaway.Cantidad)).Error
+		}
+	}
+
 	// Soft delete
-	if result := database.DB.Delete(&layaway); result.Error != nil {
+	if result := tx.Delete(&layaway); result.Error != nil {
+		tx.Rollback()
 		return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "DELETE_ERROR", "error al eliminar separado")
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "DB_ERROR", "error al confirmar eliminación")
 	}
 
 	return utils.SuccessMessage(c, fiber.StatusOK, "separado eliminado exitosamente")
