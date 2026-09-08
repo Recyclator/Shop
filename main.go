@@ -1,7 +1,12 @@
 package main
 
 import (
+	"context"
 	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -31,6 +36,7 @@ func main() {
 	if err := database.Connect(cfg); err != nil {
 		log.Fatalf("Error conectando a la base de datos: %v", err)
 	}
+	defer database.Close()
 
 	// Conectar a Redis (opcional en desarrollo, log de advertencia si falla)
 	if err := database.ConnectRedis(cfg); err != nil {
@@ -111,12 +117,44 @@ func main() {
 	// Servir la página de Login/Registro en la raíz
 	app.Get("/", handlers.RenderAuth)
 
-	// Health check
+	// Health check profundo (valida PostgreSQL y Redis)
 	app.Get("/health", func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{
-			"status":    "ok",
+		dbStatus := "ok"
+		if database.DB != nil {
+			sqlDB, err := database.DB.DB()
+			if err != nil || sqlDB.Ping() != nil {
+				dbStatus = "error"
+			}
+		} else {
+			dbStatus = "disconnected"
+		}
+
+		redisStatus := "ok"
+		if database.RDB != nil {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			if err := database.RDB.Ping(ctx).Err(); err != nil {
+				redisStatus = "degraded"
+			}
+		} else {
+			redisStatus = "disabled"
+		}
+
+		status := "ok"
+		statusCode := fiber.StatusOK
+		if dbStatus != "ok" {
+			status = "unhealthy"
+			statusCode = fiber.StatusServiceUnavailable
+		}
+
+		return c.Status(statusCode).JSON(fiber.Map{
+			"status":    status,
 			"timestamp": time.Now().UTC().Format(time.RFC3339),
 			"version":   "1.0.0",
+			"services": fiber.Map{
+				"database": dbStatus,
+				"redis":    redisStatus,
+			},
 		})
 	})
 
@@ -135,14 +173,27 @@ func main() {
 	// Configurar rutas API
 	routes.Setup(app)
 
-	// Iniciar servidor
+	// Iniciar servidor con graceful shutdown
 	port := cfg.ServerPort
 	if port == "" {
 		port = "3000"
 	}
 
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+	go func() {
+		<-sigChan
+		log.Println("🛑 Recibida señal de terminación, cerrando servidor Fiber ordenadamente...")
+		if err := app.ShutdownWithTimeout(10 * time.Second); err != nil {
+			log.Printf("⚠️ Error durante el cierre ordenado de Fiber: %v", err)
+		}
+	}()
+
 	log.Printf("🚀 Servidor iniciado en http://localhost:%s", port)
-	if err := app.Listen(":" + port); err != nil {
+	if err := app.Listen(":" + port); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("Error iniciando servidor: %v", err)
 	}
+
+	log.Println("✅ Servidor apagado limpiamente")
 }
