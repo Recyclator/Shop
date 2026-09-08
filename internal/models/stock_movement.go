@@ -10,12 +10,12 @@ type StockMovement struct {
 	VariantID     *uint     `gorm:"index" json:"variant_id"`
 	OrdenID       *uint     `gorm:"index" json:"orden_id"`
 	UsuarioID     uint      `gorm:"index" json:"usuario_id"`
-	Tipo          string    `gorm:"size:20;not null" json:"tipo"`
+	Tipo          string    `gorm:"size:20;not null;index" json:"tipo"`
 	Cantidad      int       `gorm:"not null" json:"cantidad"`
 	StockAnterior int       `json:"stock_anterior"`
 	StockNuevo    int       `json:"stock_nuevo"`
 	Motivo        string    `gorm:"size:500" json:"motivo"`
-	CreatedAt     time.Time `json:"created_at"`
+	CreatedAt     time.Time `gorm:"index" json:"created_at"`
 }
 
 func (StockMovement) TableName() string {

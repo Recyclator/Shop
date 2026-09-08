@@ -9,10 +9,10 @@ import (
 type Customer struct {
 	ID        uint         `gorm:"primaryKey" json:"id"`
 	Cedula    string       `gorm:"uniqueIndex:idx_customer_cedula;size:20;not null" json:"cedula"`
-	Nombre    string       `gorm:"size:255;not null" json:"nombre"`
+	Nombre    string       `gorm:"size:255;not null;index" json:"nombre"`
 	Email     string       `gorm:"size:255;not null;index" json:"email"`
-	Telefono  string       `gorm:"size:20;not null" json:"telefono"`
-	CreatedAt time.Time    `json:"created_at"`
+	Telefono  string       `gorm:"size:20;not null;index" json:"telefono"`
+	CreatedAt time.Time    `gorm:"index" json:"created_at"`
 	UpdatedAt time.Time    `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 

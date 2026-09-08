@@ -17,13 +17,13 @@ type Invoice struct {
 	NumeroCompleto string `gorm:"uniqueIndex;size:20;not null" json:"numero_completo"`
 
 	// Fechas DIAN
-	FechaEmision     time.Time  `gorm:"not null" json:"fecha_emision"`
+	FechaEmision     time.Time  `gorm:"not null;index" json:"fecha_emision"`
 	HoraEmision      string     `gorm:"size:8;not null" json:"hora_emision"`
 	FechaVencimiento *time.Time `json:"fecha_vencimiento"`
 
 	// Estado
-	Estado             string     `gorm:"size:20;default:'borrador'" json:"estado"`        // borrador, validada, enviada, aceptada, rechazada
-	EstadoDIAN         string     `gorm:"size:20;default:'no_enviada'" json:"estado_dian"` // no_enviada, envidada, aceptada, rechazada
+	Estado             string     `gorm:"size:20;default:'borrador';index" json:"estado"`        // borrador, validada, enviada, aceptada, rechazada
+	EstadoDIAN         string     `gorm:"size:20;default:'no_enviada';index" json:"estado_dian"` // no_enviada, envidada, aceptada, rechazada
 	UUID               string     `gorm:"size:40" json:"uuid"`                             // UUID DIAN
 	FechaRespuestaDIAN *time.Time `json:"fecha_respuesta_dian"`
 

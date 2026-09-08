@@ -43,7 +43,7 @@ type Product struct {
 	ImagenPrincipal string `gorm:"size:500" json:"imagen_principal"`
 
 	// Categorización
-	CategoriaID *uint     `json:"categoria_id"`
+	CategoriaID *uint     `gorm:"index" json:"categoria_id"`
 	Categoria   *Category `gorm:"foreignKey:CategoriaID" json:"categoria,omitempty"`
 	Tags        []Tag     `gorm:"many2many:product_tags" json:"tags"`
 
@@ -58,11 +58,11 @@ type Product struct {
 	Imagenes       []ProductImage   `gorm:"foreignKey:ProductoID" json:"imagenes,omitempty"`
 
 	// Código de barras
-	Barcode string `gorm:"size:500" json:"barcode"`
+	Barcode string `gorm:"size:500;index" json:"barcode"`
 
 	// Tiempos
 	TiempoEntregaDias int            `gorm:"default:3" json:"tiempo_entrega_dias"`
-	CreatedAt         time.Time      `json:"created_at"`
+	CreatedAt         time.Time      `gorm:"index" json:"created_at"`
 	UpdatedAt         time.Time      `json:"updated_at"`
 	DeletedAt         gorm.DeletedAt `gorm:"index" json:"-"`
 }
@@ -119,8 +119,10 @@ type CreateProductInput struct {
 	TiempoEntregaDias    int     `json:"tiempo_entrega_dias"`
 	MetaTitulo           string  `json:"meta_titulo"`
 	MetaDescripcion      string  `json:"meta_descripcion"`
-	PalabrasClave        string  `json:"palabras_clave"`
-	TieneVariantes       bool    `json:"tiene_variantes"`
+	PalabrasClave        string               `json:"palabras_clave"`
+	TieneVariantes       bool                 `json:"tiene_variantes"`
+	Estado               string               `json:"estado"`
+	Variantes            []CreateVariantInput `json:"variantes"`
 }
 
 type UpdateProductInput struct {

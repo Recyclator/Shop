@@ -14,14 +14,14 @@ type User struct {
 	Apellido            string         `gorm:"size:100" json:"apellido"`
 	Telefono            string         `gorm:"size:20" json:"telefono"`
 	TipoDocumento       string         `gorm:"size:2" json:"tipo_documento"` // CC, CE, NIT, TI, RC, PA
-	NumeroDocumento     string         `gorm:"size:20" json:"numero_documento"`
+	NumeroDocumento     string         `gorm:"size:20;index" json:"numero_documento"`
 	Direccion           string         `gorm:"size:500" json:"direccion"`
 	Ciudad              string         `gorm:"size:100" json:"ciudad"`
 	Departamento        string         `gorm:"size:100" json:"departamento"`
 	Pais                string         `gorm:"size:2;default:CO" json:"pais"`
 	CodigoPostal        string         `gorm:"size:10" json:"codigo_postal"`
 	Foto                string         `gorm:"size:500" json:"foto"`
-	Activo              bool           `gorm:"default:true" json:"activo"`
+	Activo              bool           `gorm:"default:true;index" json:"activo"`
 	Theme               string         `gorm:"size:10;default:dark" json:"theme"` // "light" or "dark"
 	EmailVerificado     bool           `gorm:"default:false" json:"email_verificado"`
 	UltimoLogin         *time.Time     `json:"ultimo_login"`
@@ -30,7 +30,7 @@ type User struct {
 	LockedUntil         *time.Time     `json:"locked_until"`
 	TwoFactorEnabled    bool           `gorm:"default:false" json:"two_factor_enabled"`
 	TwoFactorSecret     string         `gorm:"size:255" json:"-"`
-	CreatedAt           time.Time      `json:"created_at"`
+	CreatedAt           time.Time      `gorm:"index" json:"created_at"`
 	UpdatedAt           time.Time      `json:"updated_at"`
 	DeletedAt           gorm.DeletedAt `gorm:"index" json:"-"`
 

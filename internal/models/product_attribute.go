@@ -36,10 +36,12 @@ func (pa *ProductAttribute) SetValores(valores []string) {
 }
 
 type VariantAttributeValue struct {
-	ID          uint   `gorm:"primaryKey" json:"id"`
-	VariantID   uint   `gorm:"index;not null" json:"variant_id"`
-	AttributeID uint   `gorm:"index;not null" json:"attribute_id"`
-	Value       string `gorm:"size:100;not null" json:"value"`
+	ID            uint              `gorm:"primaryKey" json:"id"`
+	VariantID     uint              `gorm:"index;not null" json:"variant_id"`
+	AttributeID   uint              `gorm:"index;not null" json:"attribute_id"`
+	Value         string            `gorm:"size:100;not null" json:"value"`
+	Attribute     *ProductAttribute `gorm:"foreignKey:AttributeID" json:"attribute,omitempty"`
+	AttributeName string            `gorm:"-" json:"attribute_name,omitempty"`
 }
 
 func (VariantAttributeValue) TableName() string {
@@ -50,7 +52,7 @@ type ProductVariant struct {
 	ID             uint           `gorm:"primaryKey" json:"id"`
 	ProductoID     uint           `gorm:"index;not null" json:"producto_id"`
 	SKU            string         `gorm:"size:50;not null;uniqueIndex" json:"sku"`
-	Barcode        string         `gorm:"size:255" json:"barcode"`
+	Barcode        string         `gorm:"size:255;index" json:"barcode"`
 	Nombre         string         `gorm:"size:255" json:"nombre"`
 	PrecioOverride float64        `json:"precio_override"`
 	Stock          int            `gorm:"default:0" json:"stock"`
@@ -58,7 +60,7 @@ type ProductVariant struct {
 	Imagen         string         `gorm:"size:500" json:"imagen"`
 	Activa         bool           `gorm:"default:true" json:"activa"`
 	Orden          int            `gorm:"default:0" json:"orden"`
-	CreatedAt      time.Time      `json:"created_at"`
+	CreatedAt      time.Time      `gorm:"index" json:"created_at"`
 	UpdatedAt      time.Time      `json:"updated_at"`
 	DeletedAt      gorm.DeletedAt `gorm:"index" json:"-"`
 
@@ -97,8 +99,9 @@ type CreateVariantInput struct {
 }
 
 type VariantAttributeInput struct {
-	AttributeID uint   `json:"attribute_id" validate:"required"`
-	Value       string `json:"value" validate:"required"`
+	AttributeID   uint   `json:"attribute_id"`
+	AttributeName string `json:"attribute_name"`
+	Value         string `json:"value" validate:"required"`
 }
 
 type UpdateVariantInput struct {
@@ -132,6 +135,21 @@ func (pv *ProductVariant) ToResponse(basePrice float64) VariantResponse {
 	if pv.PrecioOverride > 0 {
 		precioFinal = pv.PrecioOverride
 	}
+	atributos := make([]VariantAttributeValue, len(pv.Atributos))
+	for i, a := range pv.Atributos {
+		attrName := a.AttributeName
+		if attrName == "" && a.Attribute != nil {
+			attrName = a.Attribute.Nombre
+		}
+		atributos[i] = VariantAttributeValue{
+			ID:            a.ID,
+			VariantID:     a.VariantID,
+			AttributeID:   a.AttributeID,
+			Value:         a.Value,
+			Attribute:     a.Attribute,
+			AttributeName: attrName,
+		}
+	}
 	return VariantResponse{
 		ID:             pv.ID,
 		ProductoID:     pv.ProductoID,
@@ -144,6 +162,6 @@ func (pv *ProductVariant) ToResponse(basePrice float64) VariantResponse {
 		StockMinimo:    pv.StockMinimo,
 		Imagen:         pv.Imagen,
 		Activa:         pv.Activa,
-		Atributos:      pv.Atributos,
+		Atributos:      atributos,
 	}
 }

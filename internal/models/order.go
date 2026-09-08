@@ -62,7 +62,7 @@ type Order struct {
 	NumeroTracking string `gorm:"size:100" json:"numero_tracking"`
 	EmpresaEnvio   string `gorm:"size:100" json:"empresa_envio"`
 
-	CreatedAt time.Time      `json:"created_at"`
+	CreatedAt time.Time      `gorm:"index" json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 
@@ -85,7 +85,7 @@ type OrderItem struct {
 	NombreProducto string `gorm:"size:255;not null" json:"nombre_producto"`
 	SKU            string `gorm:"size:50" json:"sku"`
 
-	VarianteID   *uint  `json:"variante_id"`
+	VarianteID   *uint  `gorm:"index" json:"variante_id"`
 	VarianteInfo string `gorm:"size:255" json:"variante_info"` // "Color: Rojo, Talla: XL"
 
 	Cantidad       int     `gorm:"not null" json:"cantidad"`

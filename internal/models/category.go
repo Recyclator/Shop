@@ -12,13 +12,13 @@ type Category struct {
 	Slug        string         `gorm:"uniqueIndex:idx_category_slug;size:100" json:"slug"`
 	Descripcion string         `gorm:"type:text" json:"descripcion"`
 	Imagen      string         `gorm:"size:500" json:"imagen"`
-	PadreID     *uint          `json:"padre_id"`
+	PadreID     *uint          `gorm:"index" json:"padre_id"`
 	Padre       *Category      `gorm:"foreignKey:PadreID" json:"padre,omitempty"`
 	Hijos       []Category     `gorm:"foreignKey:PadreID" json:"hijos,omitempty"`
-	Orden       int            `gorm:"default:0" json:"orden"`
+	Orden       int            `gorm:"default:0;index" json:"orden"`
 	Activa      bool           `gorm:"default:true" json:"activa"`
 	MostrarMenu bool           `gorm:"default:true" json:"mostrar_menu"`
-	CreatedAt   time.Time      `json:"created_at"`
+	CreatedAt   time.Time      `gorm:"index" json:"created_at"`
 	UpdatedAt   time.Time      `json:"updated_at"`
 	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
 
