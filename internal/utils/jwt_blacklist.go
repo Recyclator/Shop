@@ -1,11 +1,12 @@
 package utils
 
 import (
+	"context"
 	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 )
 
 // blacklistEntry almacena un JTI con su expiración
@@ -14,11 +15,19 @@ type blacklistEntry struct {
 }
 
 var (
-	blacklist = make(map[string]blacklistEntry)
-	blackMu   sync.RWMutex
+	redisClient *redis.Client
+	blacklist   = make(map[string]blacklistEntry)
+	blackMu     sync.RWMutex
 )
 
-// init limpia entradas expiradas cada 60 minutos
+// SetBlacklistRedisClient configura el cliente Redis para la lista negra distribuida
+func SetBlacklistRedisClient(client *redis.Client) {
+	blackMu.Lock()
+	defer blackMu.Unlock()
+	redisClient = client
+}
+
+// init limpia entradas expiradas cada 60 minutos de la memoria local
 func init() {
 	go func() {
 		ticker := time.NewTicker(60 * time.Minute)
@@ -29,22 +38,56 @@ func init() {
 	}()
 }
 
-// RevokeToken revoca un token por su JTI (JWT ID) hasta su expiración
+// RevokeToken revoca un token por su JTI (JWT ID) hasta su expiración en Redis y memoria local
 func RevokeToken(jti string, expiresAt time.Time) {
+	if jti == "" {
+		return
+	}
+	ttl := time.Until(expiresAt)
+	if ttl <= 0 {
+		return
+	}
+
+	blackMu.RLock()
+	client := redisClient
+	blackMu.RUnlock()
+
+	if client != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = client.Set(ctx, "nexora:blacklist:"+jti, "1", ttl).Err()
+	}
+
 	blackMu.Lock()
 	defer blackMu.Unlock()
 	blacklist[jti] = blacklistEntry{expiresAt: expiresAt}
 }
 
-// IsRevoked verifica si un token ha sido revocado
+// IsRevoked verifica si un token ha sido revocado consultando Redis (o memoria local)
 func IsRevoked(jti string) bool {
+	if jti == "" {
+		return false
+	}
+
+	blackMu.RLock()
+	client := redisClient
+	blackMu.RUnlock()
+
+	if client != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+		defer cancel()
+		exists, err := client.Exists(ctx, "nexora:blacklist:"+jti).Result()
+		if err == nil && exists > 0 {
+			return true
+		}
+	}
+
 	blackMu.RLock()
 	defer blackMu.RUnlock()
 	entry, exists := blacklist[jti]
 	if !exists {
 		return false
 	}
-	// Si ya expiró, podemos eliminarlo de la blacklist
 	if time.Now().After(entry.expiresAt) {
 		return false
 	}
@@ -63,7 +106,7 @@ func RevokeTokenString(tokenString string) {
 	}
 	jti, _ := claims["jti"].(string)
 	if jti == "" {
-		jti = uuid.New().String() // fallback
+		return
 	}
 	expFloat, _ := claims["exp"].(float64)
 	var expiresAt time.Time
@@ -75,7 +118,7 @@ func RevokeTokenString(tokenString string) {
 	RevokeToken(jti, expiresAt)
 }
 
-// cleanExpiredEntries limpia entradas expiradas de la blacklist
+// cleanExpiredEntries limpia entradas expiradas de la memoria local
 func cleanExpiredEntries() {
 	blackMu.Lock()
 	defer blackMu.Unlock()

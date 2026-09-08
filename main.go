@@ -14,6 +14,7 @@ import (
 	"github.com/nexora/backend/internal/handlers"
 	customMiddleware "github.com/nexora/backend/internal/middleware"
 	"github.com/nexora/backend/internal/routes"
+	"github.com/nexora/backend/internal/utils"
 )
 
 func main() {
@@ -35,6 +36,7 @@ func main() {
 		log.Printf("⚠️  Advertencia: No se pudo conectar a Redis: %v. Caching y rate limiting distribuido desactivados.", err)
 	} else {
 		defer database.CloseRedis()
+		utils.SetBlacklistRedisClient(database.RDB)
 	}
 
 	// Ejecutar migraciones
@@ -90,7 +92,13 @@ func main() {
 		MaxAge:           86400,
 	}))
 
-	// Servir archivos estáticos (CSS, JS, imágenes)
+	// Servir archivos estáticos (CSS, JS, imágenes) sin caché agresiva del navegador
+	app.Use("/static", func(c *fiber.Ctx) error {
+		c.Set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0")
+		c.Set("Pragma", "no-cache")
+		c.Set("Expires", "0")
+		return c.Next()
+	})
 	app.Static("/static", "./static", fiber.Static{
 		CacheDuration: 0,
 		MaxAge:        0,

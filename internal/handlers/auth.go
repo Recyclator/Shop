@@ -193,6 +193,16 @@ func RefreshToken(c *fiber.Ctx) error {
 		return utils.ErrorWithCode(c, fiber.StatusUnauthorized, "INVALID_TOKEN", "token inválido o expirado")
 	}
 
+	// Verificar si el refresh token ha sido revocado
+	if utils.IsRevoked(claims.RegisteredClaims.ID) {
+		return utils.ErrorWithCode(c, fiber.StatusUnauthorized, "TOKEN_REVOKED", "token revocado")
+	}
+
+	// Rotación de token: revocar el refresh token actual para prevenir replay attacks
+	if claims.RegisteredClaims.ID != "" && claims.ExpiresAt != nil {
+		utils.RevokeToken(claims.RegisteredClaims.ID, claims.ExpiresAt.Time)
+	}
+
 	// Buscar usuario
 	var user models.User
 	if result := database.DB.Preload("Roles.Permisos").First(&user, claims.UserID); result.Error != nil {
