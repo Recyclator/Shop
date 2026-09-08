@@ -2,17 +2,63 @@ package handlers
 
 import (
 	"fmt"
+	"io"
+	"mime/multipart"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 	"github.com/nexora/backend/internal/database"
 	"github.com/nexora/backend/internal/middleware"
 	"github.com/nexora/backend/internal/models"
 	"github.com/nexora/backend/internal/utils"
 )
+
+const maxUploadFileSize = 10 * 1024 * 1024 // 10MB
+
+// validateUploadedImage inspects file size, extension, and magic bytes
+func validateUploadedImage(file *multipart.FileHeader) (string, error) {
+	if file.Size > maxUploadFileSize {
+		return "", fmt.Errorf("el archivo %s excede el tamaño máximo permitido de 10MB", file.Filename)
+	}
+
+	ext := strings.ToLower(filepath.Ext(file.Filename))
+	allowedExts := map[string]string{
+		".jpg":  "image/jpeg",
+		".jpeg": "image/jpeg",
+		".png":  "image/png",
+		".webp": "image/webp",
+		".gif":  "image/gif",
+	}
+
+	expectedMime, ok := allowedExts[ext]
+	if !ok {
+		return "", fmt.Errorf("formato de archivo no permitido: %s", ext)
+	}
+
+	f, err := file.Open()
+	if err != nil {
+		return "", fmt.Errorf("no se pudo abrir el archivo %s", file.Filename)
+	}
+	defer f.Close()
+
+	// Sniff first 512 bytes
+	buffer := make([]byte, 512)
+	n, err := f.Read(buffer)
+	if err != nil && err != io.EOF {
+		return "", fmt.Errorf("error al leer contenido del archivo %s", file.Filename)
+	}
+
+	detectedMime := strings.Split(http.DetectContentType(buffer[:n]), ";")[0]
+	if detectedMime != expectedMime {
+		return "", fmt.Errorf("el contenido del archivo no coincide con su extensión (%s != %s)", detectedMime, expectedMime)
+	}
+
+	return ext, nil
+}
 
 // UploadProductImages handles multiple image uploads for a product
 // POST /api/products/:id/images
@@ -61,16 +107,15 @@ func UploadProductImages(c *fiber.Ctx) error {
 
 	var savedImages []models.ProductImage
 
-	for i, file := range files {
-		// Validate file type
-		ext := filepath.Ext(file.Filename)
-		allowedExts := map[string]bool{".jpg": true, ".jpeg": true, ".png": true, ".webp": true, ".gif": true}
-		if !allowedExts[ext] {
-			continue // Skip unsupported files
+	for _, file := range files {
+		// Validate file type and magic bytes
+		ext, err := validateUploadedImage(file)
+		if err != nil {
+			continue // Skip invalid/unsupported/suspicious files
 		}
 
-		// Generate unique filename
-		filename := fmt.Sprintf("%d_%d_%d%s", productID, time.Now().UnixNano(), i, ext)
+		// Generate cryptographically unique, unpredictable filename
+		filename := fmt.Sprintf("%d_%s%s", productID, uuid.New().String(), ext)
 		filePath := filepath.Join(uploadDir, filename)
 
 		// Save file
@@ -79,14 +124,14 @@ func UploadProductImages(c *fiber.Ctx) error {
 		}
 
 		// Determine if this should be the principal image
-		isPrincipal := (existingPrincipal == 0 && i == 0)
+		isPrincipal := (existingPrincipal == 0 && len(savedImages) == 0)
 
 		image := models.ProductImage{
 			ProductoID:  uint(productID),
 			URL:         "/static/uploads/products/" + filename,
 			Alt:         product.Nombre,
 			EsPrincipal: isPrincipal,
-			Orden:       maxOrden + 1 + i,
+			Orden:       maxOrden + 1 + len(savedImages),
 		}
 
 		if result := database.DB.Create(&image); result.Error == nil {
@@ -100,7 +145,7 @@ func UploadProductImages(c *fiber.Ctx) error {
 	}
 
 	if len(savedImages) == 0 {
-		return utils.ErrorWithCode(c, fiber.StatusBadRequest, "NO_SAVED", "no se pudo guardar ninguna imagen")
+		return utils.ErrorWithCode(c, fiber.StatusBadRequest, "NO_SAVED", "no se pudo guardar ninguna imagen válida")
 	}
 
 	return utils.Success(c, fiber.StatusCreated, fmt.Sprintf("%d imágenes subidas", len(savedImages)), savedImages)
@@ -147,14 +192,13 @@ func UploadVariantImages(c *fiber.Ctx) error {
 	os.MkdirAll(uploadDir, os.ModePerm)
 
 	var savedURLs []string
-	for i, file := range files {
-		ext := filepath.Ext(file.Filename)
-		allowedExts := map[string]bool{".jpg": true, ".jpeg": true, ".png": true, ".webp": true, ".gif": true}
-		if !allowedExts[ext] {
+	for _, file := range files {
+		ext, err := validateUploadedImage(file)
+		if err != nil {
 			continue
 		}
 
-		filename := fmt.Sprintf("%d_%d_%d%s", varID, time.Now().UnixNano(), i, ext)
+		filename := fmt.Sprintf("%d_%s%s", varID, uuid.New().String(), ext)
 		filePath := filepath.Join(uploadDir, filename)
 
 		if err := c.SaveFile(file, filePath); err != nil {
@@ -165,7 +209,7 @@ func UploadVariantImages(c *fiber.Ctx) error {
 	}
 
 	if len(savedURLs) == 0 {
-		return utils.ErrorWithCode(c, fiber.StatusBadRequest, "NO_SAVED", "no se pudo guardar ninguna imagen")
+		return utils.ErrorWithCode(c, fiber.StatusBadRequest, "NO_SAVED", "no se pudo guardar ninguna imagen válida")
 	}
 
 	existing := variant.Imagen
@@ -226,9 +270,12 @@ func DeleteProductImage(c *fiber.Ctx) error {
 
 	wasPrincipal := image.EsPrincipal
 
-	// Delete the file from disk
-	if image.URL != "" {
-		os.Remove("." + image.URL)
+	// Safely delete the file from disk (prevent path traversal)
+	if strings.HasPrefix(image.URL, "/static/uploads/") {
+		cleanRel := filepath.Clean("." + image.URL)
+		if strings.HasPrefix(cleanRel, "static/uploads/") {
+			_ = os.Remove(cleanRel)
+		}
 	}
 
 	// Delete from DB
