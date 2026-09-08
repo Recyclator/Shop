@@ -75,6 +75,13 @@ func ErrorWithDetails(c *fiber.Ctx, status int, code, message, details string) e
 }
 
 func Paginated(c *fiber.Ctx, status int, data interface{}, page, limit int, total int64) error {
+	if limit <= 0 {
+		limit = 20
+	}
+	if page <= 0 {
+		page = 1
+	}
+
 	totalPages := int(total) / limit
 	if int(total)%limit > 0 {
 		totalPages++
