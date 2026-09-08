@@ -166,6 +166,11 @@ func CreateProduct(c *fiber.Ctx) error {
 		return utils.ErrorWithCode(c, fiber.StatusConflict, "SKU_EXISTS", "el SKU ya existe")
 	}
 
+	estado := input.Estado
+	if estado == "" {
+		estado = "activo"
+	}
+
 	// Generar slug
 	product := models.Product{
 		SKU:                  input.SKU,
@@ -188,8 +193,8 @@ func CreateProduct(c *fiber.Ctx) error {
 		MetaTitulo:           input.MetaTitulo,
 		MetaDescripcion:      input.MetaDescripcion,
 		PalabrasClave:        input.PalabrasClave,
-		TieneVariantes:       input.TieneVariantes,
-		Estado:               "activo",
+		TieneVariantes:       input.TieneVariantes || len(input.Variantes) > 0,
+		Estado:               estado,
 	}
 
 	// Calcular porcentaje de descuento
@@ -206,6 +211,71 @@ func CreateProduct(c *fiber.Ctx) error {
 	product.Barcode = fmt.Sprintf("https://barcode.tec-it.com/barcode.ashx?data=%s&code=Code128&translate-esc=on", product.SKU)
 	database.DB.Save(&product)
 
+	// Crear variantes si se proporcionaron
+	if len(input.Variantes) > 0 {
+		totalVariantStock := 0
+		for i, vi := range input.Variantes {
+			varSKU := vi.SKU
+			if varSKU == "" {
+				varSKU = fmt.Sprintf("%s-V%d", product.SKU, i+1)
+			}
+			varName := vi.Nombre
+			if varName == "" {
+				varName = fmt.Sprintf("%s - Variante %d", product.Nombre, i+1)
+			}
+			stockMin := vi.StockMinimo
+			if stockMin <= 0 {
+				stockMin = product.StockMinimo
+			}
+			variant := models.ProductVariant{
+				ProductoID:     product.ID,
+				SKU:            varSKU,
+				Barcode:        vi.Barcode,
+				Nombre:         varName,
+				PrecioOverride: vi.PrecioOverride,
+				Stock:          vi.Stock,
+				StockMinimo:    stockMin,
+				Imagen:         vi.Imagen,
+				Activa:         true,
+				Orden:          i,
+			}
+			if err := database.DB.Create(&variant).Error; err == nil {
+				for _, a := range vi.Atributos {
+					attrID := a.AttributeID
+					if attrID == 0 && a.AttributeName != "" {
+						var existingAttr models.ProductAttribute
+						if err := database.DB.Where("LOWER(nombre) = LOWER(?)", a.AttributeName).First(&existingAttr).Error; err == nil {
+							attrID = existingAttr.ID
+						} else {
+							newAttr := models.ProductAttribute{
+								CategoriaID: product.CategoriaID,
+								Nombre:      a.AttributeName,
+								Tipo:        "select",
+								Activo:      true,
+							}
+							newAttr.SetValores([]string{a.Value})
+							if err := database.DB.Create(&newAttr).Error; err == nil {
+								attrID = newAttr.ID
+							}
+						}
+					}
+					if attrID > 0 {
+						attrValue := models.VariantAttributeValue{
+							VariantID:   variant.ID,
+							AttributeID: attrID,
+							Value:       a.Value,
+						}
+						database.DB.Create(&attrValue)
+					}
+				}
+				totalVariantStock += vi.Stock
+			}
+		}
+		product.TieneVariantes = true
+		product.Stock = totalVariantStock
+		database.DB.Save(&product)
+	}
+
 	// Asignar tags
 	if len(input.Tags) > 0 {
 		var tags []models.Tag
@@ -214,7 +284,7 @@ func CreateProduct(c *fiber.Ctx) error {
 	}
 
 	// Cargar relaciones
-	database.DB.Preload("Categoria").Preload("Tags").Preload("Variantes").Preload("Imagenes").First(&product, product.ID)
+	database.DB.Preload("Categoria").Preload("Tags").Preload("Variantes.Atributos.Attribute").Preload("Imagenes").First(&product, product.ID)
 
 	return utils.Success(c, fiber.StatusCreated, "producto creado exitosamente", product.ToResponse())
 }
@@ -610,7 +680,7 @@ func GetStockAlerts(c *fiber.Ctx) error {
 	var variants []models.ProductVariant
 	database.DB.
 		Preload("Producto").
-		Where("stock <= (SELECT stock_minimo FROM products WHERE id = product_variants.producto_id AND controla_inventario = 1 AND stock_minimo > 0)").
+		Where("stock <= (SELECT stock_minimo FROM products WHERE id = product_variants.producto_id AND controla_inventario = true AND stock_minimo > 0)").
 		Or("stock = 0").
 		Find(&variants)
 
