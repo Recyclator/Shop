@@ -101,7 +101,9 @@ func CreateVariant(c *fiber.Ctx) error {
 
 	database.DB.Model(&product).Update("tiene_variantes", true)
 
-	database.DB.Preload("Atributos").First(&variant, variant.ID)
+	database.DB.Preload("Atributos.Attribute").First(&variant, variant.ID)
+
+	database.InvalidateProductCache(uint(productID))
 
 	return utils.Success(c, fiber.StatusCreated, "variante creada", variant.ToResponse(product.Precio))
 }
@@ -119,7 +121,7 @@ func GetVariantsByProduct(c *fiber.Ctx) error {
 
 	var variantes []models.ProductVariant
 	if err := database.DB.Where("producto_id = ?", productID).
-		Preload("Atributos").
+		Preload("Atributos.Attribute").
 		Order("orden ASC").
 		Find(&variantes).Error; err != nil {
 		return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "DB_ERROR", "error al obtener variantes")
@@ -201,8 +203,10 @@ func UpdateVariant(c *fiber.Ctx) error {
 		}
 	}
 
-	database.DB.Preload("Atributos").First(&variant, variant.ID)
+	database.DB.Preload("Atributos.Attribute").First(&variant, variant.ID)
 	database.DB.First(&product, productID)
+
+	database.InvalidateProductCache(uint(productID))
 
 	return utils.Success(c, fiber.StatusOK, "variante actualizada", variant.ToResponse(product.Precio))
 }
@@ -236,6 +240,8 @@ func DeleteVariant(c *fiber.Ctx) error {
 	if result := database.DB.Delete(&variant); result.Error != nil {
 		return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "DELETE_ERROR", "error al eliminar variante")
 	}
+
+	database.InvalidateProductCache(uint(productID))
 
 	return utils.Success(c, fiber.StatusOK, "variante eliminada", nil)
 }
