@@ -15,6 +15,11 @@ import (
 // GetOrders obtiene la lista de pedidos
 // GET /api/orders
 func GetOrders(c *fiber.Ctx) error {
+	currentUser := middleware.GetUser(c)
+	if currentUser == nil {
+		return utils.ErrorWithCode(c, fiber.StatusUnauthorized, "UNAUTHORIZED", "no autorizado")
+	}
+
 	page := c.QueryInt("page", 1)
 	limit := c.QueryInt("limit", 20)
 	estado := c.Query("estado", "")
@@ -31,6 +36,11 @@ func GetOrders(c *fiber.Ctx) error {
 	offset := (page - 1) * limit
 
 	query := database.DB.Model(&models.Order{}).Preload("Cliente").Preload("Vendedor").Preload("Items")
+
+	// IDOR Protection: Si es cliente (nivel > 20), solo puede ver sus propios pedidos
+	if currentUser.GetHighestRoleLevel() > 20 {
+		query = query.Where("cliente_id = ?", currentUser.ID)
+	}
 
 	if estado != "" {
 		query = query.Where("estado = ?", estado)
@@ -63,6 +73,11 @@ func GetOrders(c *fiber.Ctx) error {
 // GetOrderByID obtiene un pedido por ID
 // GET /api/orders/:id
 func GetOrderByID(c *fiber.Ctx) error {
+	currentUser := middleware.GetUser(c)
+	if currentUser == nil {
+		return utils.ErrorWithCode(c, fiber.StatusUnauthorized, "UNAUTHORIZED", "no autorizado")
+	}
+
 	id, err := c.ParamsInt("id")
 	if err != nil {
 		return utils.ErrorWithCode(c, fiber.StatusBadRequest, "INVALID_ID", "ID de pedido inválido")
@@ -76,6 +91,11 @@ func GetOrderByID(c *fiber.Ctx) error {
 		Preload("Items.Producto").
 		First(&order, id); result.Error != nil {
 		return utils.ErrorWithCode(c, fiber.StatusNotFound, "NOT_FOUND", "pedido no encontrado")
+	}
+
+	// IDOR Protection: Si es cliente, solo puede ver su propio pedido
+	if currentUser.GetHighestRoleLevel() > 20 && order.ClienteID != currentUser.ID {
+		return utils.ErrorWithCode(c, fiber.StatusForbidden, "FORBIDDEN", "no tienes permiso para ver este pedido")
 	}
 
 	return utils.SuccessData(c, fiber.StatusOK, order.ToResponse())
@@ -507,7 +527,7 @@ func CancelOrder(c *fiber.Ctx) error {
 		return utils.ErrorWithCode(c, fiber.StatusUnauthorized, "UNAUTHORIZED", "no autorizado")
 	}
 
-	if !currentUser.HasPermission("orders.delete") {
+	if !currentUser.HasPermission("orders.cancel") {
 		return utils.ErrorWithCode(c, fiber.StatusForbidden, "FORBIDDEN", "no tienes permiso para cancelar pedidos")
 	}
 
@@ -519,6 +539,11 @@ func CancelOrder(c *fiber.Ctx) error {
 	var order models.Order
 	if result := database.DB.Preload("Items").First(&order, id); result.Error != nil {
 		return utils.ErrorWithCode(c, fiber.StatusNotFound, "NOT_FOUND", "pedido no encontrado")
+	}
+
+	// IDOR Protection: Si es cliente, solo puede cancelar sus propios pedidos
+	if currentUser.GetHighestRoleLevel() > 20 && order.ClienteID != currentUser.ID {
+		return utils.ErrorWithCode(c, fiber.StatusForbidden, "FORBIDDEN", "no tienes permiso para cancelar este pedido")
 	}
 
 	if order.Estado == "cancelado" {
