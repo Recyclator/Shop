@@ -1,6 +1,16 @@
 function getAuthToken() { return window.token || localStorage.getItem('nexora_token') || ''; }
 function getBaseApiUrl() { return window.API_URL || '/api'; }
 
+function esc(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 let layCurrentPage = 1, layCurrentSearch = '', layCurrentStatus = '', layCurrentId = null;
 function layFormat(n) { return (n||0).toLocaleString('es-CO'); }
 
@@ -46,27 +56,28 @@ function renderLayaways(list) {
             }
         }
 
+        const layId = Number(l.id);
         const cancelBtn = (l.estado === 'activo' || l.estado === 'active') ? `
-            <button class="action-btn" onclick="cancelLayaway(${l.id})" title="Cancelar"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+            <button class="action-btn" onclick="cancelLayaway(${layId})" title="Cancelar"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         ` : '';
 
         return `<tr>
-            <td style="font-weight:500;color:var(--text)">${l.customer?.nombre||'-'}</td>
-            <td>${l.product?.nombre||'-'}</td>
+            <td style="font-weight:500;color:var(--text)">${esc(l.customer?.nombre||'-')}</td>
+            <td>${esc(l.product?.nombre||'-')}</td>
             <td class="mono">$${layFormat(l.precio_total)}</td>
             <td class="mono" style="color:var(--success)">$${layFormat(ab)}</td>
             <td class="mono" style="color:${l.saldo_pendiente>0?'var(--warning)':'var(--success)'}">$${layFormat(l.saldo_pendiente)}</td>
-            <td>${dateStr}</td>
-            <td><span class="badge ${bc}">${l.estado}</span></td>
+            <td>${esc(dateStr)}</td>
+            <td><span class="badge ${bc}">${esc(l.estado)}</span></td>
             <td><div class="actions">
-                <button class="action-btn" onclick="openPaymentsModal(${l.id})" title="Abonos"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></button>
+                <button class="action-btn" onclick="openPaymentsModal(${layId})" title="Abonos"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></button>
                 ${cancelBtn}
             </div></td></tr>`;
     }).join('');
 }
 
-async function loadLayCustomers() { try { const res = await fetch(`${getBaseApiUrl()}/customers?limit=1000`,{headers:{'Authorization':'Bearer '+getAuthToken()}}); if(res.ok){const c=(await res.json()).data||[];document.getElementById('lay-customer').innerHTML='<option value="">Seleccionar...</option>'+c.map(x=>`<option value="${x.id}">${x.nombre} (${x.cedula})</option>`).join('');}} catch(e){} }
-async function loadLayProducts() { try { const res = await fetch(`${getBaseApiUrl()}/products?limit=1000`,{headers:{'Authorization':'Bearer '+getAuthToken()}}); if(res.ok){const p=(await res.json()).data||[];document.getElementById('lay-product').innerHTML='<option value="">Seleccionar...</option>'+p.map(x=>`<option value="${x.id}">${x.nombre} - $${layFormat(x.precio)}</option>`).join('');}} catch(e){} }
+async function loadLayCustomers() { try { const res = await fetch(`${getBaseApiUrl()}/customers?limit=1000`,{headers:{'Authorization':'Bearer '+getAuthToken()}}); if(res.ok){const c=(await res.json()).data||[];document.getElementById('lay-customer').innerHTML='<option value="">Seleccionar...</option>'+c.map(x=>`<option value="${Number(x.id)}">${esc(x.nombre)} (${esc(x.cedula)})</option>`).join('');}} catch(e){} }
+async function loadLayProducts() { try { const res = await fetch(`${getBaseApiUrl()}/products?limit=1000`,{headers:{'Authorization':'Bearer '+getAuthToken()}}); if(res.ok){const p=(await res.json()).data||[];document.getElementById('lay-product').innerHTML='<option value="">Seleccionar...</option>'+p.map(x=>`<option value="${Number(x.id)}">${esc(x.nombre)} - $${layFormat(x.precio)}</option>`).join('');}} catch(e){} }
 function openCreateModal() { loadLayCustomers(); loadLayProducts(); document.getElementById('layaway-form').reset(); document.getElementById('layaway-modal').classList.add('active'); }
 function closeModal() { document.getElementById('layaway-modal').classList.remove('active'); }
 async function saveLayaway() {
@@ -81,14 +92,14 @@ async function openPaymentsModal(id) {
         if(res.ok){
             const d = await res.json(), lay=d.separado, ab=d.abonos||[];
             document.getElementById('balance-amount').textContent = '$'+layFormat(lay.saldo_pendiente);
-            document.getElementById('payment-details').innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;"><div><div style="font-size:11px;color:var(--text-mut)">Cliente</div><div style="font-weight:500;color:var(--text)">${lay.customer?.nombre||'-'}</div></div><div><div style="font-size:11px;color:var(--text-mut)">Producto</div><div style="font-weight:500;color:var(--text)">${lay.product?.nombre||'-'}</div></div><div><div style="font-size:11px;color:var(--text-mut)">Total</div><div class="mono">$${layFormat(lay.precio_total)}</div></div><div><div style="font-size:11px;color:var(--text-mut)">Abono Inicial</div><div class="mono" style="color:var(--success)">$${layFormat(lay.abono_inicial)}</div></div></div>`;
+            document.getElementById('payment-details').innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;"><div><div style="font-size:11px;color:var(--text-mut)">Cliente</div><div style="font-weight:500;color:var(--text)">${esc(lay.customer?.nombre||'-')}</div></div><div><div style="font-size:11px;color:var(--text-mut)">Producto</div><div style="font-weight:500;color:var(--text)">${esc(lay.product?.nombre||'-')}</div></div><div><div style="font-size:11px;color:var(--text-mut)">Total</div><div class="mono">$${layFormat(lay.precio_total)}</div></div><div><div style="font-size:11px;color:var(--text-mut)">Abono Inicial</div><div class="mono" style="color:var(--success)">$${layFormat(lay.abono_inicial)}</div></div></div>`;
             document.getElementById('payments-list').innerHTML = ab.length===0?'<div style="text-align:center;padding:20px;color:var(--text-mut)">Sin abonos</div>':ab.map(a=>{
                 let pDate = '-';
                 if (a.fecha_pago) {
                     const dObj = new Date(a.fecha_pago);
                     if (!isNaN(dObj.getTime())) pDate = dObj.toLocaleString('es-CO');
                 }
-                return `<div style="padding:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;"><div><div class="mono" style="color:var(--success)">+$${layFormat(a.monto)}</div><div style="font-size:12px;color:var(--text-mut)">${pDate}</div></div></div>`;
+                return `<div style="padding:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;"><div><div class="mono" style="color:var(--success)">+$${layFormat(a.monto)}</div><div style="font-size:12px;color:var(--text-mut)">${esc(pDate)}</div></div></div>`;
             }).join('');
             document.getElementById('payment-amount').value = '';
             document.getElementById('payments-modal').classList.add('active');

@@ -1,6 +1,16 @@
 function getAuthToken() { return window.token || localStorage.getItem('nexora_token') || ''; }
 function getBaseApiUrl() { return window.API_URL || '/api'; }
 
+function esc(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 let rpRoles=[], rpPerms=[];
 const rpProtected=['superadmin','admin','vendedor','contador','cliente'];
 
@@ -9,7 +19,8 @@ async function loadRoles(){try{const r=await fetch(`${getBaseApiUrl()}/roles`,{h
 function renderRoles(){
     document.getElementById('roles-table').innerHTML=rpRoles.map(r=>{
         const ip=rpProtected.includes(r.nombre);
-        return `<tr><td><div style="font-weight:500;color:var(--text)">${r.display_name}</div><div style="font-size:11px;color:var(--text-mut)">${r.nombre}</div>${ip?'<span class="badge badge-yellow" style="margin-top:4px">Protegido</span>':''}</td><td class="mono">${r.nivel}</td><td><span class="badge badge-blue">${r.permisos?.length||0}</span></td><td>${r.usuarios?.length||0}</td><td><span class="badge ${r.activo?'badge-green':'badge-gray'}">${r.activo?'Activo':'Inactivo'}</span></td><td><div class="actions">${ip?`<button class="action-btn" onclick="editRole(${r.id})"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>`:`<button class="action-btn" onclick="editRole(${r.id})"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button><button class="action-btn" onclick="deleteRole(${r.id})"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline x1="3" y1="6" x2="21" y2="6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>`}</div></td></tr>`;
+        const roleId = Number(r.id);
+        return `<tr><td><div style="font-weight:500;color:var(--text)">${esc(r.display_name)}</div><div style="font-size:11px;color:var(--text-mut)">${esc(r.nombre)}</div>${ip?'<span class="badge badge-yellow" style="margin-top:4px">Protegido</span>':''}</td><td class="mono">${esc(r.nivel)}</td><td><span class="badge badge-blue">${r.permisos?.length||0}</span></td><td>${r.usuarios?.length||0}</td><td><span class="badge ${r.activo?'badge-green':'badge-gray'}">${r.activo?'Activo':'Inactivo'}</span></td><td><div class="actions">${ip?`<button class="action-btn" onclick="editRole(${roleId})"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>`:`<button class="action-btn" onclick="editRole(${roleId})"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button><button class="action-btn" onclick="deleteRole(${roleId})"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline x1="3" y1="6" x2="21" y2="6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>`}</div></td></tr>`;
     }).join('');
 }
 
@@ -17,7 +28,7 @@ async function loadPermissions(){try{const r=await fetch(`${getBaseApiUrl()}/per
 
 function renderAllPerms(){
     const g={};rpPerms.forEach(p=>{if(!g[p.modulo])g[p.modulo]=[];g[p.modulo].push(p);});
-    document.getElementById('all-permissions-list').innerHTML=Object.keys(g).sort().map(m=>`<div style="margin-bottom:12px;"><div style="font-size:13px;font-weight:600;margin-bottom:6px;padding:6px 10px;background:var(--bg-surf);border-radius:6px;">${m}</div><div style="display:flex;flex-wrap:wrap;gap:6px;padding-left:10px;">${g[m].map(p=>`<span style="font-size:11px;padding:3px 8px;background:var(--bg-elev);border-radius:4px;">${p.nombre}</span>`).join('')}</div></div>`).join('');
+    document.getElementById('all-permissions-list').innerHTML=Object.keys(g).sort().map(m=>`<div style="margin-bottom:12px;"><div style="font-size:13px;font-weight:600;margin-bottom:6px;padding:6px 10px;background:var(--bg-surf);border-radius:6px;">${esc(m)}</div><div style="display:flex;flex-wrap:wrap;gap:6px;padding-left:10px;">${g[m].map(p=>`<span style="font-size:11px;padding:3px 8px;background:var(--bg-elev);border-radius:4px;">${esc(p.nombre)}</span>`).join('')}</div></div>`).join('');
 }
 
 function openRoleModal(){document.getElementById('role-modal-title').textContent='Nuevo Rol';document.getElementById('role-form').reset();document.getElementById('role-id').value='';document.getElementById('role-nombre').disabled=false;renderPermChecks();document.getElementById('role-modal').classList.add('active');}
@@ -25,7 +36,7 @@ function closeRoleModal(){document.getElementById('role-modal').classList.remove
 
 function renderPermChecks(){
     const g={};rpPerms.forEach(p=>{if(!g[p.modulo])g[p.modulo]=[];g[p.modulo].push(p);});
-    document.getElementById('permissions-list').innerHTML=Object.keys(g).sort().map(m=>`<div style="margin-bottom:10px;"><div style="font-size:12px;font-weight:600;margin-bottom:4px;">${m}</div><div style="display:flex;flex-wrap:wrap;gap:6px;">${g[m].map(p=>`<label style="font-size:11px;display:flex;align-items:center;gap:4px;"><input type="checkbox" value="${p.id}" data-perm="${p.codigo}">${p.nombre}</label>`).join('')}</div></div>`).join('');
+    document.getElementById('permissions-list').innerHTML=Object.keys(g).sort().map(m=>`<div style="margin-bottom:10px;"><div style="font-size:12px;font-weight:600;margin-bottom:4px;">${esc(m)}</div><div style="display:flex;flex-wrap:wrap;gap:6px;">${g[m].map(p=>`<label style="font-size:11px;display:flex;align-items:center;gap:4px;"><input type="checkbox" value="${Number(p.id)}" data-perm="${esc(p.codigo)}">${esc(p.nombre)}</label>`).join('')}</div></div>`).join('');
 }
 
 async function editRole(id){try{const r=await fetch(`${getBaseApiUrl()}/roles/${id}`,{headers:{'Authorization':'Bearer '+getAuthToken()}});if(r.ok){const d=(await r.json()).data;document.getElementById('role-modal-title').textContent='Editar Rol';document.getElementById('role-id').value=d.id;document.getElementById('role-nombre').value=d.nombre;document.getElementById('role-nombre').disabled=true;document.getElementById('role-display').value=d.display_name;document.getElementById('role-desc').value=d.descripcion||'';document.getElementById('role-level').value=d.nivel;renderPermChecks();if(d.permisos)d.permisos.forEach(p=>{const cb=document.querySelector(`input[data-perm="${p.codigo}"]`);if(cb)cb.checked=true;});document.getElementById('role-modal').classList.add('active');}}catch(e){Toast.error('Error','No se pudo cargar');}}

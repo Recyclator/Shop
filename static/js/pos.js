@@ -1,5 +1,16 @@
 function getAuthToken() { return window.token || localStorage.getItem('nexora_token') || ''; }
 function getBaseApiUrl() { return window.API_URL || '/api'; }
+
+function esc(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 let posProducts = [];
 let posCategories = [];
 let cart = [];
@@ -46,7 +57,7 @@ function renderPOSCategories() {
 
     html += posCategories.map(c => {
         const btnClass = selectedCategory === c.id ? 'btn-primary' : 'btn-secondary';
-        return `<button class="btn btn-sm ${btnClass}" onclick="selectCategory(${c.id})" style="border-radius:20px; font-size:12px; height:32px; white-space:nowrap; flex-shrink:0;">${c.nombre}</button>`;
+        return `<button class="btn btn-sm ${btnClass}" onclick="selectCategory(${Number(c.id)})" style="border-radius:20px; font-size:12px; height:32px; white-space:nowrap; flex-shrink:0;">${esc(c.nombre)}</button>`;
     }).join('');
 
     container.innerHTML = html;
@@ -86,16 +97,16 @@ function renderPOSProducts() {
     grid.innerHTML = filtered.map(p => {
         const isOutOfStock = p.stock <= 0;
         const cardClass = isOutOfStock ? 'pos-product-card oos' : 'pos-product-card';
-        const clickAction = isOutOfStock ? '' : `onclick="addToCart(${p.id})"`;
+        const clickAction = isOutOfStock ? '' : `onclick="addToCart(${Number(p.id)})"`;
         
         // Stock status badge
         let stockBadgeHtml = '';
         if (isOutOfStock) {
             stockBadgeHtml = `<span class="pos-stock-badge status-red"><span class="pulse-dot"></span>Agotado</span>`;
         } else if (p.stock <= 5) {
-            stockBadgeHtml = `<span class="pos-stock-badge status-yellow"><span class="pulse-dot"></span>Crítico: ${p.stock}</span>`;
+            stockBadgeHtml = `<span class="pos-stock-badge status-yellow"><span class="pulse-dot"></span>Crítico: ${Number(p.stock)}</span>`;
         } else {
-            stockBadgeHtml = `<span class="pos-stock-badge status-green"><span class="pulse-dot"></span>Stock: ${p.stock}</span>`;
+            stockBadgeHtml = `<span class="pos-stock-badge status-green"><span class="pulse-dot"></span>Stock: ${Number(p.stock)}</span>`;
         }
 
         // Cart quantity badge
@@ -106,7 +117,7 @@ function renderPOSProducts() {
         // Image template
         let imgHtml = '';
         if (p.imagen && p.imagen.trim() !== '') {
-            imgHtml = `<img src="${p.imagen}" alt="${p.nombre}" class="pos-product-img" loading="lazy">`;
+            imgHtml = `<img src="${esc(p.imagen)}" alt="${esc(p.nombre)}" class="pos-product-img" loading="lazy">`;
         } else {
             imgHtml = `
                 <div class="pos-product-placeholder">
@@ -138,7 +149,7 @@ function renderPOSProducts() {
         }
 
         const variantsIndicator = p.tiene_variantes ? `<span class="pos-variants-tag">Variantes</span>` : '';
-        const catLabel = p.categoria_nombre ? `<span class="pos-cat-label">${p.categoria_nombre}</span>` : '';
+        const catLabel = p.categoria_nombre ? `<span class="pos-cat-label">${esc(p.categoria_nombre)}</span>` : '';
 
         return `
             <div class="${cardClass}" ${clickAction}>
@@ -150,10 +161,10 @@ function renderPOSProducts() {
                 </div>
                 <div class="pos-product-info">
                     ${catLabel}
-                    <div class="pos-product-name" title="${p.nombre}">${p.nombre}</div>
+                    <div class="pos-product-name" title="${esc(p.nombre)}">${esc(p.nombre)}</div>
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-top:auto; padding-top:8px;">
                         ${priceHtml}
-                        <span class="pos-product-sku mono">${p.sku || ''}</span>
+                        <span class="pos-product-sku mono">${esc(p.sku || '')}</span>
                     </div>
                 </div>
             </div>
@@ -308,22 +319,25 @@ function renderCart() {
     const tax = total - subtotal;
 
     container.innerHTML = cart.map(item => {
-        const varLabel = item.variantInfo ? `<div style="font-size:11px;color:var(--accent);margin-top:2px;">${item.variantInfo}</div>` : '';
+        const varLabel = item.variantInfo ? `<div style="font-size:11px;color:var(--accent);margin-top:2px;">${esc(item.variantInfo)}</div>` : '';
+        const itemId = Number(item.id);
+        const itemVarId = Number(item.variantId || 0);
+        const itemQty = Number(item.qty);
         return `
             <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border);">
                 <div style="flex: 1; padding-right: 12px;">
-                    <div style="font-weight:600; font-size:13px; color:var(--text);">${item.nombre}</div>
+                    <div style="font-weight:600; font-size:13px; color:var(--text);">${esc(item.nombre)}</div>
                     ${varLabel}
-                    <div style="font-size:11px; color:var(--text-mut); margin-top:2px;">$${item.precio.toLocaleString('es-CO')} c/u</div>
+                    <div style="font-size:11px; color:var(--text-mut); margin-top:2px;">$${(item.precio || 0).toLocaleString('es-CO')} c/u</div>
                 </div>
                 <div style="display:flex; align-items:center; gap:8px;">
                     <div style="display:flex; align-items:center; border:1px solid var(--border); border-radius:6px; background:var(--bg-surf); overflow:hidden;">
-                        <button class="action-btn" onclick="updateCartQty(${item.id}, ${item.variantId || 0}, -1)" style="width:24px; height:24px; padding:0; display:flex; align-items:center; justify-content:center; font-size:14px; border:none; background:transparent; cursor:pointer; color:var(--text-sec);">&minus;</button>
-                        <span class="mono" style="min-width:24px; text-align:center; font-size:12px; font-weight:600;">${item.qty}</span>
-                        <button class="action-btn" onclick="updateCartQty(${item.id}, ${item.variantId || 0}, 1)" style="width:24px; height:24px; padding:0; display:flex; align-items:center; justify-content:center; font-size:14px; border:none; background:transparent; cursor:pointer; color:var(--text-sec);">+</button>
+                        <button class="action-btn" onclick="updateCartQty(${itemId}, ${itemVarId}, -1)" style="width:24px; height:24px; padding:0; display:flex; align-items:center; justify-content:center; font-size:14px; border:none; background:transparent; cursor:pointer; color:var(--text-sec);">&minus;</button>
+                        <span class="mono" style="min-width:24px; text-align:center; font-size:12px; font-weight:600;">${itemQty}</span>
+                        <button class="action-btn" onclick="updateCartQty(${itemId}, ${itemVarId}, 1)" style="width:24px; height:24px; padding:0; display:flex; align-items:center; justify-content:center; font-size:14px; border:none; background:transparent; cursor:pointer; color:var(--text-sec);">+</button>
                     </div>
-                    <span class="mono" style="font-weight:600; font-size:13px; min-width:75px; text-align:right; color:var(--text);">$${(item.precio * item.qty).toLocaleString('es-CO')}</span>
-                    <button class="action-btn" onclick="removeFromCart(${item.id}, ${item.variantId || 0})" style="color:var(--danger); margin-left:8px; display:flex; align-items:center; justify-content:center; width:28px; height:28px; border:none; background:transparent; cursor:pointer;" title="Remover del carrito">
+                    <span class="mono" style="font-weight:600; font-size:13px; min-width:75px; text-align:right; color:var(--text);">$${((item.precio || 0) * itemQty).toLocaleString('es-CO')}</span>
+                    <button class="action-btn" onclick="removeFromCart(${itemId}, ${itemVarId})" style="color:var(--danger); margin-left:8px; display:flex; align-items:center; justify-content:center; width:28px; height:28px; border:none; background:transparent; cursor:pointer;" title="Remover del carrito">
                         <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline x1="3" y1="6" x2="21" y2="6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                     </button>
                 </div>
@@ -524,6 +538,7 @@ async function searchCustomers() {
             if (list.length === 0) {
                 resultsDiv.innerHTML = '<div style="padding:12px; font-size:12px; color:var(--text-mut); text-align:center;">Sin resultados</div>';
             } else {
+                window._searchCustomersMap = {};
                 let html = `
                     <div style="display: grid; grid-template-columns: 100px 1fr 110px; padding: 8px 12px; font-weight: 600; font-size: 10px; color: var(--text-mut); border-bottom: 1px solid var(--border-strong); background: rgba(0,0,0,0.15); letter-spacing: 0.5px;">
                         <div>DOCUMENTO</div>
@@ -531,13 +546,16 @@ async function searchCustomers() {
                         <div style="text-align: right;">TELÉFONO</div>
                     </div>
                 `;
-                html += list.map(c => `
-                    <div class="customer-result-row" onclick="selectCustomer(${c.id}, '${c.nombre.replace(/'/g, "\\'")}', '${c.cedula}')" style="display: grid; grid-template-columns: 100px 1fr 110px; padding: 10px 12px; border-bottom: 1px solid var(--border); cursor: pointer; font-size: 12px; transition: background 0.15s; align-items: center;" onmouseover="this.style.background='var(--bg-hover)';" onmouseout="this.style.background='transparent';">
-                        <div class="mono" style="font-weight: 600; color: var(--accent);">${c.cedula}</div>
-                        <div style="font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 8px;">${c.nombre}</div>
-                        <div class="mono" style="text-align: right; color: var(--text-sec);">${c.telefono || '-'}</div>
+                html += list.map(c => {
+                    window._searchCustomersMap[c.id] = c;
+                    return `
+                    <div class="customer-result-row" onclick="selectCustomerFromMap(${Number(c.id)})" style="display: grid; grid-template-columns: 100px 1fr 110px; padding: 10px 12px; border-bottom: 1px solid var(--border); cursor: pointer; font-size: 12px; transition: background 0.15s; align-items: center;" onmouseover="this.style.background='var(--bg-hover)';" onmouseout="this.style.background='transparent';">
+                        <div class="mono" style="font-weight: 600; color: var(--accent);">${esc(c.cedula)}</div>
+                        <div style="font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 8px;">${esc(c.nombre)}</div>
+                        <div class="mono" style="text-align: right; color: var(--text-sec);">${esc(c.telefono || '-')}</div>
                     </div>
-                `).join('');
+                `;
+                }).join('');
                 resultsDiv.innerHTML = html;
             }
             resultsDiv.style.display = 'block';
@@ -546,6 +564,14 @@ async function searchCustomers() {
         console.error("Error buscando clientes", e);
     }
 }
+
+function selectCustomerFromMap(id) {
+    if (window._searchCustomersMap && window._searchCustomersMap[id]) {
+        const c = window._searchCustomersMap[id];
+        selectCustomer(c.id, c.nombre, c.cedula);
+    }
+}
+window.selectCustomerFromMap = selectCustomerFromMap;
 
 function selectCustomer(id, nombre, cedula) {
     selectedCustomer = { id, nombre, cedula };
@@ -854,11 +880,11 @@ function renderPOSSales(orders) {
 
         return `
             <tr>
-                <td style="padding:12px 16px; font-weight:600;" class="mono">#${o.id}</td>
-                <td style="padding:12px 16px; color:var(--text-sec);">${dateStr}</td>
-                <td style="padding:12px 16px; text-align:center;" class="mono">${itemsQty}</td>
-                <td style="padding:12px 16px; font-weight:600;" class="mono">$${totalFormatted}</td>
-                <td style="padding:12px 16px;"><span class="badge badge-green">${payMethodStr}</span></td>
+                <td style="padding:12px 16px; font-weight:600;" class="mono">#${Number(o.id)}</td>
+                <td style="padding:12px 16px; color:var(--text-sec);">${esc(dateStr)}</td>
+                <td style="padding:12px 16px; text-align:center;" class="mono">${Number(itemsQty)}</td>
+                <td style="padding:12px 16px; font-weight:600;" class="mono">$${esc(totalFormatted)}</td>
+                <td style="padding:12px 16px;"><span class="badge badge-green">${esc(payMethodStr)}</span></td>
             </tr>
         `;
     }).join('');
