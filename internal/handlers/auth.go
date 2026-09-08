@@ -123,6 +123,11 @@ func Login(c *fiber.Ctx) error {
 		return utils.ErrorWithCode(c, fiber.StatusForbidden, "USER_INACTIVE", "cuenta inactiva")
 	}
 
+	// Verificar si está bloqueado temporalmente
+	if user.LockedUntil != nil && time.Now().Before(*user.LockedUntil) {
+		return utils.ErrorWithCode(c, fiber.StatusForbidden, "USER_LOCKED", "cuenta temporalmente bloqueada")
+	}
+
 	// Verificar contraseña
 	if !utils.CheckPassword(input.Password, user.Password) {
 		// Incrementar intentos fallidos
@@ -138,11 +143,6 @@ func Login(c *fiber.Ctx) error {
 
 		database.DB.Save(&user)
 		return utils.ErrorWithCode(c, fiber.StatusUnauthorized, "INVALID_CREDENTIALS", "credenciales inválidas")
-	}
-
-	// Verificar si está bloqueado temporalmente
-	if user.LockedUntil != nil && time.Now().Before(*user.LockedUntil) {
-		return utils.ErrorWithCode(c, fiber.StatusForbidden, "USER_LOCKED", "cuenta temporalmente bloqueada")
 	}
 
 	// Resetear intentos fallidos y actualizar último login
@@ -247,8 +247,14 @@ func ChangePassword(c *fiber.Ctx) error {
 		return utils.ErrorWithCode(c, fiber.StatusBadRequest, "INVALID_BODY", "formato de datos inválido")
 	}
 
+	// Consultar contraseña actual directamente de la DB para evitar desincronización con caché en Redis
+	var dbUser models.User
+	if err := database.DB.Select("id", "password").First(&dbUser, user.ID).Error; err != nil {
+		return utils.ErrorWithCode(c, fiber.StatusNotFound, "USER_NOT_FOUND", "usuario no encontrado")
+	}
+
 	// Verificar contraseña actual
-	if !utils.CheckPassword(input.CurrentPassword, user.Password) {
+	if !utils.CheckPassword(input.CurrentPassword, dbUser.Password) {
 		return utils.ErrorWithCode(c, fiber.StatusBadRequest, "INVALID_PASSWORD", "contraseña actual incorrecta")
 	}
 
@@ -268,11 +274,11 @@ func ChangePassword(c *fiber.Ctx) error {
 		return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "HASH_ERROR", "error al procesar la contraseña")
 	}
 
-	user.Password = hashedPassword
 	now := time.Now()
-	user.PasswordChangedAt = &now
-
-	if result := database.DB.Save(user); result.Error != nil {
+	if result := database.DB.Model(&models.User{}).Where("id = ?", user.ID).Updates(map[string]interface{}{
+		"password":            hashedPassword,
+		"password_changed_at": &now,
+	}); result.Error != nil {
 		return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "SAVE_ERROR", "error al guardar la contraseña")
 	}
 
