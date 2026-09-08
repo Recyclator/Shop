@@ -8,6 +8,7 @@ import (
 	"github.com/nexora/backend/internal/database"
 	"github.com/nexora/backend/internal/middleware"
 	"github.com/nexora/backend/internal/models"
+	"github.com/nexora/backend/internal/services"
 	"github.com/nexora/backend/internal/utils"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -492,37 +493,13 @@ func ExpiredLayaways(c *fiber.Ctx) error {
 		return utils.ErrorWithCode(c, fiber.StatusForbidden, "FORBIDDEN", "no tienes permiso para gestionar separados")
 	}
 
-	now := time.Now()
-
-	tx := database.DB.Begin()
-	var expiredLayaways []models.Layaway
-	if err := tx.Where("estado = ? AND fecha_vencimiento < ?", "activo", now).Find(&expiredLayaways).Error; err != nil {
-		tx.Rollback()
-		return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "UPDATE_ERROR", "error al buscar separados vencidos")
-	}
-
-	for _, lay := range expiredLayaways {
-		var product models.Product
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&product, lay.ProductID).Error; err == nil && product.ControlaInventario {
-			_ = tx.Model(&product).Update("stock", gorm.Expr("stock + ?", lay.Cantidad)).Error
-		}
-	}
-
-	result := tx.Model(&models.Layaway{}).
-		Where("estado = ? AND fecha_vencimiento < ?", "activo", now).
-		Update("estado", "vencido")
-
-	if result.Error != nil {
-		tx.Rollback()
+	count, err := services.ProcessExpiredLayaways()
+	if err != nil {
 		return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "UPDATE_ERROR", "error al verificar separados vencidos")
 	}
 
-	if err := tx.Commit().Error; err != nil {
-		return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "DB_ERROR", "error al confirmar verificación")
-	}
-
 	return utils.Success(c, fiber.StatusOK, "verificación completada", fiber.Map{
-		"separados_vencidos": result.RowsAffected,
+		"separados_vencidos": count,
 	})
 }
 

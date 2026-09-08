@@ -14,6 +14,7 @@ import (
 	"github.com/nexora/backend/internal/handlers"
 	customMiddleware "github.com/nexora/backend/internal/middleware"
 	"github.com/nexora/backend/internal/routes"
+	"github.com/nexora/backend/internal/services"
 	"github.com/nexora/backend/internal/utils"
 )
 
@@ -48,6 +49,9 @@ func main() {
 	if err := database.SeedData(); err != nil {
 		log.Fatalf("Error cargando datos iniciales: %v", err)
 	}
+
+	// Iniciar background workers (chequeo periódico de separados vencidos y liberación de stock)
+	services.StartLayawayExpirationWorker(1 * time.Hour)
 
 	// Crear app Fiber
 	app := fiber.New(fiber.Config{
