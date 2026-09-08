@@ -23,9 +23,10 @@ WORKDIR /app
 # Instalar certificados y runtime
 RUN apk --no-cache add ca-certificates tzdata
 
-# Copiar binario
+# Copiar binario y recursos estáticos
 COPY --from=builder /app/main .
 COPY --from=builder /app/pkg /app/pkg
+COPY --from=builder /app/static /app/static
 
 # Exponer puerto
 EXPOSE 3000
