@@ -148,6 +148,8 @@ func UploadProductImages(c *fiber.Ctx) error {
 		return utils.ErrorWithCode(c, fiber.StatusBadRequest, "NO_SAVED", "no se pudo guardar ninguna imagen válida")
 	}
 
+	database.InvalidateProductCache(uint(productID))
+
 	return utils.Success(c, fiber.StatusCreated, fmt.Sprintf("%d imágenes subidas", len(savedImages)), savedImages)
 }
 
@@ -222,6 +224,8 @@ func UploadVariantImages(c *fiber.Ctx) error {
 
 	database.DB.Model(&variant).Update("imagen", variant.Imagen)
 
+	database.InvalidateProductCache(uint(productID))
+
 	return utils.Success(c, fiber.StatusOK, "imágenes de variante subidas", finalURLs)
 }
 
@@ -295,6 +299,8 @@ func DeleteProductImage(c *fiber.Ctx) error {
 		}
 	}
 
+	database.InvalidateProductCache(uint(productID))
+
 	return utils.SuccessMessage(c, fiber.StatusOK, "imagen eliminada")
 }
 
@@ -332,6 +338,8 @@ func SetPrincipalImage(c *fiber.Ctx) error {
 	database.DB.Model(&image).Update("es_principal", true)
 	database.DB.Model(&models.Product{}).Where("id = ?", productID).Update("imagen_principal", image.URL)
 
+	database.InvalidateProductCache(uint(productID))
+
 	return utils.SuccessMessage(c, fiber.StatusOK, "imagen principal actualizada")
 }
 
@@ -358,6 +366,8 @@ func ReorderProductImages(c *fiber.Ctx) error {
 	for i, imgID := range input.ImageIDs {
 		database.DB.Model(&models.ProductImage{}).Where("id = ? AND producto_id = ?", imgID, productID).Update("orden", i)
 	}
+
+	database.InvalidateProductCache(uint(productID))
 
 	return utils.SuccessMessage(c, fiber.StatusOK, "orden actualizado")
 }

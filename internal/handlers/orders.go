@@ -286,6 +286,13 @@ func CreateOrder(c *fiber.Ctx) error {
 		return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "COMMIT_ERROR", "error al confirmar la transacción")
 	}
 
+	// Invalidate product cache for ordered items
+	affectedProductIDs := make([]uint, 0, len(items))
+	for _, it := range items {
+		affectedProductIDs = append(affectedProductIDs, it.ProductoID)
+	}
+	database.InvalidateProductCache(affectedProductIDs...)
+
 	// Cargar relaciones
 	database.DB.Preload("Cliente").Preload("Vendedor").Preload("Items").First(&order, order.ID)
 
@@ -456,6 +463,13 @@ func QuickPOSSale(c *fiber.Ctx) error {
 		return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "DB_ERROR", "error al guardar venta")
 	}
 
+	// Invalidate product cache for sold items
+	affectedProductIDs := make([]uint, 0, len(items))
+	for _, it := range items {
+		affectedProductIDs = append(affectedProductIDs, it.ProductoID)
+	}
+	database.InvalidateProductCache(affectedProductIDs...)
+
 	cambio := input.Recibido - total
 	if cambio < 0 {
 		cambio = 0
@@ -578,6 +592,13 @@ func CancelOrder(c *fiber.Ctx) error {
 		return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "UPDATE_ERROR", "error al cancelar el pedido")
 	}
 	tx.Commit()
+
+	// Invalidate product cache for restored items
+	affectedProductIDs := make([]uint, 0, len(order.Items))
+	for _, it := range order.Items {
+		affectedProductIDs = append(affectedProductIDs, it.ProductoID)
+	}
+	database.InvalidateProductCache(affectedProductIDs...)
 
 	return utils.Success(c, fiber.StatusOK, "pedido cancelado exitosamente", order.ToResponse())
 }

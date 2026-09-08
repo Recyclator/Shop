@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/nexora/backend/internal/database"
@@ -91,6 +93,16 @@ func GetProductByID(c *fiber.Ctx) error {
 		return utils.ErrorWithCode(c, fiber.StatusBadRequest, "INVALID_ID", "ID de producto inválido")
 	}
 
+	cacheKey := fmt.Sprintf("nexora:catalog:product:%d", id)
+	if database.RDB != nil {
+		if val, err := database.RDB.Get(c.Context(), cacheKey).Result(); err == nil && val != "" {
+			var cached models.ProductResponse
+			if err := json.Unmarshal([]byte(val), &cached); err == nil {
+				return utils.SuccessData(c, fiber.StatusOK, cached)
+			}
+		}
+	}
+
 	var product models.Product
 	if result := database.DB.
 		Preload("Categoria").
@@ -101,7 +113,14 @@ func GetProductByID(c *fiber.Ctx) error {
 		return utils.ErrorWithCode(c, fiber.StatusNotFound, "NOT_FOUND", "producto no encontrado")
 	}
 
-	return utils.SuccessData(c, fiber.StatusOK, product.ToResponse())
+	resp := product.ToResponse()
+	if database.RDB != nil {
+		if data, err := json.Marshal(resp); err == nil {
+			database.RDB.Set(c.Context(), cacheKey, string(data), 10*time.Minute)
+		}
+	}
+
+	return utils.SuccessData(c, fiber.StatusOK, resp)
 }
 
 // GetProductBySKU obtiene un producto por SKU
@@ -385,6 +404,8 @@ func UpdateProduct(c *fiber.Ctx) error {
 	// Recargar
 	database.DB.Preload("Categoria").Preload("Tags").Preload("Variantes").Preload("Imagenes").First(&product, product.ID)
 
+	database.InvalidateProductCache(product.ID)
+
 	return utils.Success(c, fiber.StatusOK, "producto actualizado exitosamente", product.ToResponse())
 }
 
@@ -414,6 +435,8 @@ func DeleteProduct(c *fiber.Ctx) error {
 	if result := database.DB.Delete(&product); result.Error != nil {
 		return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "DELETE_ERROR", "error al eliminar producto")
 	}
+
+	database.InvalidateProductCache(product.ID)
 
 	return utils.SuccessMessage(c, fiber.StatusOK, "producto eliminado exitosamente")
 }
@@ -516,6 +539,8 @@ func GenerateProductQR(c *fiber.Ctx) error {
 
 	product.Barcode = barcode
 	database.DB.Save(&product)
+
+	database.InvalidateProductCache(product.ID)
 
 	return utils.SuccessData(c, fiber.StatusOK, fiber.Map{
 		"barcode":  barcode,
@@ -644,6 +669,8 @@ func AdjustProductStock(c *fiber.Ctx) error {
 	if err := tx.Commit().Error; err != nil {
 		return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "DB_ERROR", "error al guardar ajuste de stock")
 	}
+
+	database.InvalidateProductCache(product.ID)
 
 	return utils.SuccessData(c, fiber.StatusOK, fiber.Map{
 		"producto_id":    product.ID,

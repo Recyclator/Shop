@@ -1,7 +1,10 @@
 package handlers
 
 import (
+	"encoding/json"
+	"fmt"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/nexora/backend/internal/database"
@@ -10,9 +13,32 @@ import (
 	"github.com/nexora/backend/internal/utils"
 )
 
+// CategorySummaryResponse representa la respuesta serializada de una categoría en listados
+type CategorySummaryResponse struct {
+	ID          uint   `json:"id"`
+	Nombre      string `json:"nombre"`
+	Slug        string `json:"slug"`
+	Descripcion string `json:"descripcion"`
+	Imagen      string `json:"imagen"`
+	PadreID     *uint  `json:"padre_id"`
+	Orden       int    `json:"orden"`
+	Activa      bool   `json:"activa"`
+	MostrarMenu bool   `json:"mostrar_menu"`
+}
+
 // GetCategories obtener todas las categorías
 // GET /api/categories
 func GetCategories(c *fiber.Ctx) error {
+	cacheKey := "nexora:catalog:categories:all"
+	if database.RDB != nil {
+		if val, err := database.RDB.Get(c.Context(), cacheKey).Result(); err == nil && val != "" {
+			var cached []CategorySummaryResponse
+			if err := json.Unmarshal([]byte(val), &cached); err == nil {
+				return utils.SuccessData(c, fiber.StatusOK, cached)
+			}
+		}
+	}
+
 	var categories []models.Category
 	if err := database.DB.
 		Preload("Padre").
@@ -22,21 +48,9 @@ func GetCategories(c *fiber.Ctx) error {
 		return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "DB_ERROR", "error al obtener categorías")
 	}
 
-	type Response struct {
-		ID          uint   `json:"id"`
-		Nombre      string `json:"nombre"`
-		Slug        string `json:"slug"`
-		Descripcion string `json:"descripcion"`
-		Imagen      string `json:"imagen"`
-		PadreID     *uint  `json:"padre_id"`
-		Orden       int    `json:"orden"`
-		Activa      bool   `json:"activa"`
-		MostrarMenu bool   `json:"mostrar_menu"`
-	}
-
-	responses := make([]Response, len(categories))
+	responses := make([]CategorySummaryResponse, len(categories))
 	for i, cat := range categories {
-		responses[i] = Response{
+		responses[i] = CategorySummaryResponse{
 			ID:          cat.ID,
 			Nombre:      cat.Nombre,
 			Slug:        cat.Slug,
@@ -46,6 +60,12 @@ func GetCategories(c *fiber.Ctx) error {
 			Orden:       cat.Orden,
 			Activa:      cat.Activa,
 			MostrarMenu: cat.MostrarMenu,
+		}
+	}
+
+	if database.RDB != nil {
+		if data, err := json.Marshal(responses); err == nil {
+			database.RDB.Set(c.Context(), cacheKey, string(data), 15*time.Minute)
 		}
 	}
 
@@ -60,6 +80,16 @@ func GetCategoryByID(c *fiber.Ctx) error {
 		return utils.ErrorWithCode(c, fiber.StatusBadRequest, "INVALID_ID", "ID de categoría inválido")
 	}
 
+	cacheKey := fmt.Sprintf("nexora:catalog:category:%d", id)
+	if database.RDB != nil {
+		if val, err := database.RDB.Get(c.Context(), cacheKey).Result(); err == nil && val != "" {
+			var cached models.Category
+			if err := json.Unmarshal([]byte(val), &cached); err == nil {
+				return utils.SuccessData(c, fiber.StatusOK, cached)
+			}
+		}
+	}
+
 	var category models.Category
 	if result := database.DB.
 		Preload("Padre").
@@ -67,6 +97,12 @@ func GetCategoryByID(c *fiber.Ctx) error {
 		Preload("Productos").
 		First(&category, id); result.Error != nil {
 		return utils.ErrorWithCode(c, fiber.StatusNotFound, "NOT_FOUND", "categoría no encontrada")
+	}
+
+	if database.RDB != nil {
+		if data, err := json.Marshal(category); err == nil {
+			database.RDB.Set(c.Context(), cacheKey, string(data), 15*time.Minute)
+		}
 	}
 
 	return utils.SuccessData(c, fiber.StatusOK, category)
@@ -120,6 +156,8 @@ func CreateCategory(c *fiber.Ctx) error {
 		}
 		return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "CREATE_ERROR", "error al crear categoría: "+result.Error.Error())
 	}
+
+	database.InvalidateCategoryCache()
 
 	return utils.Success(c, fiber.StatusCreated, "categoría creada exitosamente", category)
 }
@@ -190,6 +228,8 @@ func UpdateCategory(c *fiber.Ctx) error {
 
 	database.DB.Preload("Padre").Preload("Hijos").First(&category, id)
 
+	database.InvalidateCategoryCache(category.ID)
+
 	return utils.Success(c, fiber.StatusOK, "categoría actualizada exitosamente", category)
 }
 
@@ -230,6 +270,8 @@ func DeleteCategory(c *fiber.Ctx) error {
 	if result := database.DB.Delete(&category); result.Error != nil {
 		return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "DELETE_ERROR", "error al eliminar categoría")
 	}
+
+	database.InvalidateCategoryCache(category.ID)
 
 	return utils.SuccessMessage(c, fiber.StatusOK, "categoría eliminada exitosamente")
 }
