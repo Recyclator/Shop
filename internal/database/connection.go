@@ -34,7 +34,26 @@ func Connect(cfg *config.Config) error {
 		return fmt.Errorf("error al conectar a PostgreSQL: %w", err)
 	}
 
-	log.Println("✅ Conexión a PostgreSQL establecida")
+	sqlDB, err := DB.DB()
+	if err != nil {
+		return fmt.Errorf("error al obtener sql.DB: %w", err)
+	}
+
+	maxOpen := cfg.DBMaxOpenConns
+	if maxOpen <= 0 {
+		maxOpen = 50
+	}
+	maxIdle := cfg.DBMaxIdleConns
+	if maxIdle <= 0 {
+		maxIdle = 10
+	}
+
+	sqlDB.SetMaxOpenConns(maxOpen)
+	sqlDB.SetMaxIdleConns(maxIdle)
+	sqlDB.SetConnMaxLifetime(time.Hour)
+	sqlDB.SetConnMaxIdleTime(15 * time.Minute)
+
+	log.Printf("✅ Conexión a PostgreSQL establecida (Pool: %d max_open, %d max_idle)", maxOpen, maxIdle)
 	return nil
 }
 
@@ -137,9 +156,12 @@ func SeedData() error {
 }
 
 func Close() error {
-	sqlDB, err := DB.DB()
-	if err != nil {
-		return err
+	if DB != nil {
+		sqlDB, err := DB.DB()
+		if err != nil {
+			return err
+		}
+		return sqlDB.Close()
 	}
-	return sqlDB.Close()
+	return nil
 }

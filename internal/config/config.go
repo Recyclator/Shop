@@ -13,12 +13,14 @@ type Config struct {
 	Env        string
 
 	// Database
-	DBHost     string
-	DBPort     string
-	DBUser     string
-	DBPassword string
-	DBName     string
-	DBSSLMode  string
+	DBHost         string
+	DBPort         string
+	DBUser         string
+	DBPassword     string
+	DBName         string
+	DBSSLMode      string
+	DBMaxOpenConns int
+	DBMaxIdleConns int
 
 	// Redis
 	RedisHost     string
@@ -88,6 +90,8 @@ func Load() *Config {
 		DBPassword:             getEnv("DB_PASSWORD", "password"),
 		DBName:                 getEnv("DB_NAME", "nexora"),
 		DBSSLMode:              getEnv("DB_SSL_MODE", "disable"),
+		DBMaxOpenConns:         getIntEnv("DB_MAX_OPEN_CONNS", 50),
+		DBMaxIdleConns:         getIntEnv("DB_MAX_IDLE_CONNS", 10),
 		RedisHost:              getEnv("REDIS_HOST", "localhost"),
 		RedisPort:              getEnv("REDIS_PORT", "6379"),
 		RedisPassword:          getEnv("REDIS_PASSWORD", ""),
@@ -130,6 +134,15 @@ func (c *Config) GetDSN() string {
 func getEnv(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
+	}
+	return defaultValue
+}
+
+func getIntEnv(key string, defaultValue int) int {
+	if value := os.Getenv(key); value != "" {
+		if intVal, err := strconv.Atoi(value); err == nil && intVal > 0 {
+			return intVal
+		}
 	}
 	return defaultValue
 }
