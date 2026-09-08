@@ -371,7 +371,7 @@ func CancelLayaway(c *fiber.Ctx) error {
 		return utils.ErrorWithCode(c, fiber.StatusUnauthorized, "UNAUTHORIZED", "no autorizado")
 	}
 
-	if !currentUser.HasPermission("layaways.delete") {
+	if !currentUser.HasPermission("layaways.cancel") {
 		return utils.ErrorWithCode(c, fiber.StatusForbidden, "FORBIDDEN", "no tienes permiso para cancelar separados")
 	}
 

@@ -162,6 +162,13 @@ func UpdateRole(c *fiber.Ctx) error {
 	// Recargar
 	database.DB.Preload("Permisos").First(&role, role.ID)
 
+	// Invalidar caché de todos los usuarios que tengan este rol
+	var userIDs []uint
+	database.DB.Table("user_roles").Where("role_id = ?", role.ID).Pluck("user_id", &userIDs)
+	for _, uid := range userIDs {
+		database.InvalidateUserCache(uid)
+	}
+
 	return utils.Success(c, fiber.StatusOK, "rol actualizado exitosamente", role)
 }
 

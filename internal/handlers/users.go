@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -244,15 +245,21 @@ func DeleteUser(c *fiber.Ctx) error {
 	}
 
 	var user models.User
-	if result := database.DB.First(&user, id); result.Error != nil {
+	if result := database.DB.Preload("Roles").First(&user, id); result.Error != nil {
 		return utils.ErrorWithCode(c, fiber.StatusNotFound, "NOT_FOUND", "usuario no encontrado")
 	}
 
+	// Protección de jerarquía: no puede desactivar a un usuario con nivel igual o superior al suyo
+	if currentUser.GetHighestRoleLevel() > 1 && user.GetHighestRoleLevel() <= currentUser.GetHighestRoleLevel() {
+		return utils.ErrorWithCode(c, fiber.StatusForbidden, "FORBIDDEN", "no puedes desactivar a un usuario con nivel igual o superior al tuyo")
+	}
+
 	// Desactivar en lugar de eliminar
-	user.Activo = false
-	if result := database.DB.Save(&user); result.Error != nil {
+	if result := database.DB.Model(&user).Update("activo", false); result.Error != nil {
 		return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "DELETE_ERROR", "error al eliminar usuario")
 	}
+
+	database.InvalidateUserCache(user.ID)
 
 	return utils.SuccessMessage(c, fiber.StatusOK, "usuario eliminado exitosamente")
 }
@@ -274,6 +281,13 @@ func AssignRoles(c *fiber.Ctx) error {
 		return utils.ErrorWithCode(c, fiber.StatusBadRequest, "INVALID_ID", "ID de usuario inválido")
 	}
 
+	currentUserLevel := currentUser.GetHighestRoleLevel()
+
+	// Protección de jerarquía: no puede modificarse a sí mismo para escalar privilegios
+	if currentUserLevel > 1 && currentUser.ID == uint(id) {
+		return utils.ErrorWithCode(c, fiber.StatusForbidden, "FORBIDDEN", "no puedes modificar tus propios roles")
+	}
+
 	var input struct {
 		RoleIDs []uint `json:"role_ids"`
 	}
@@ -287,12 +301,31 @@ func AssignRoles(c *fiber.Ctx) error {
 		return utils.ErrorWithCode(c, fiber.StatusNotFound, "NOT_FOUND", "usuario no encontrado")
 	}
 
-	// Obtener roles
+	// Protección de jerarquía: no puede modificar roles de un usuario con nivel igual o superior
+	if currentUserLevel > 1 && user.GetHighestRoleLevel() <= currentUserLevel {
+		return utils.ErrorWithCode(c, fiber.StatusForbidden, "FORBIDDEN", "no puedes modificar roles de un usuario con nivel igual o superior al tuyo")
+	}
+
+	// Obtener roles solicitados
 	var roles []models.Role
-	database.DB.Find(&roles, input.RoleIDs)
+	if len(input.RoleIDs) > 0 {
+		database.DB.Find(&roles, input.RoleIDs)
+		if len(roles) != len(input.RoleIDs) {
+			return utils.ErrorWithCode(c, fiber.StatusBadRequest, "INVALID_ROLES", "uno o más roles especificados no existen")
+		}
+
+		// Protección de jerarquía: no puede asignar ningún rol con nivel superior al suyo
+		if currentUserLevel > 1 {
+			for _, r := range roles {
+				if r.Nivel < currentUserLevel {
+					return utils.ErrorWithCode(c, fiber.StatusForbidden, "FORBIDDEN", fmt.Sprintf("no tienes permiso para asignar el rol '%s' (nivel superior)", r.DisplayName))
+				}
+			}
+		}
+	}
 
 	// Reemplazar roles
-	if result := database.DB.Model(&user).Association("Roles").Replace(roles); result != nil {
+	if err := database.DB.Model(&user).Association("Roles").Replace(roles); err != nil {
 		return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "ASSOCIATION_ERROR", "error al asignar roles")
 	}
 

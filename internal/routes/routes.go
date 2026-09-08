@@ -114,7 +114,7 @@ func Setup(app *fiber.App) {
 	layaways.Post("/:id/cancel", middleware.RequirePermissionAny("layaways.cancel"), handlers.CancelLayaway)
 	layaways.Post("/:id/payments", middleware.RequirePermissionAny("layaways.payment"), handlers.AddPayment)
 	layaways.Get("/:id/payments", middleware.RequirePermissionAny("layaways.read"), handlers.GetLayawayPayments)
-	layaways.Post("/check-expired", middleware.RequirePermissionAny("layaways.read"), handlers.ExpiredLayaways)
+	layaways.Post("/check-expired", middleware.RequirePermissionAny("layaways.update"), handlers.ExpiredLayaways)
 	layaways.Delete("/:id", middleware.RequirePermissionAny("layaways.delete"), handlers.DeleteLayaway)
 
 	// ========== SYSTEM ==========
