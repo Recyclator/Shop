@@ -127,7 +127,7 @@ type CreateOrderItemInput struct {
 	ProductoID     uint    `json:"producto_id" validate:"required"`
 	VarianteID     *uint   `json:"variante_id"`
 	Cantidad       int     `json:"cantidad" validate:"required,min=1"`
-	PrecioUnitario float64 `json:"precio_unitario" validate:"required"`
+	PrecioUnitario float64 `json:"precio_unitario"`
 	Notas          string  `json:"notas"`
 }
 

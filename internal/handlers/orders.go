@@ -121,21 +121,58 @@ func CreateOrder(c *fiber.Ctx) error {
 			return utils.ErrorWithCode(c, fiber.StatusBadRequest, "INVALID_PRODUCT", fmt.Sprintf("producto %d no encontrado", item.ProductoID))
 		}
 
-		if product.ControlaInventario && product.Stock < item.Cantidad && !product.PermiteStockNegativo {
-			tx.Rollback()
-			return utils.ErrorWithCode(c, fiber.StatusBadRequest, "INSUFFICIENT_STOCK", fmt.Sprintf("stock insuficiente para %s", product.Nombre))
+		var variant *models.ProductVariant
+		precioUnitario := product.Precio
+		sku := product.SKU
+		var variantInfo string
+
+		if item.VarianteID != nil && *item.VarianteID > 0 {
+			variant = new(models.ProductVariant)
+			if result := tx.Preload("Atributos").Clauses(clause.Locking{Strength: "UPDATE"}).First(variant, *item.VarianteID); result.Error != nil {
+				tx.Rollback()
+				return utils.ErrorWithCode(c, fiber.StatusBadRequest, "INVALID_VARIANT", fmt.Sprintf("variante %d no encontrada", *item.VarianteID))
+			}
+			if variant.ProductoID != item.ProductoID {
+				tx.Rollback()
+				return utils.ErrorWithCode(c, fiber.StatusBadRequest, "VARIANT_MISMATCH", "la variante no pertenece al producto")
+			}
+			if variant.PrecioOverride > 0 {
+				precioUnitario = variant.PrecioOverride
+			}
+			sku = variant.SKU
+			for _, attr := range variant.Atributos {
+				if variantInfo != "" {
+					variantInfo += ", "
+				}
+				variantInfo += attr.Value
+			}
 		}
 
-		itemTotal := item.PrecioUnitario * float64(item.Cantidad)
+		stockActual := product.Stock
+		if variant != nil {
+			stockActual = variant.Stock
+		}
+
+		if product.ControlaInventario && stockActual < item.Cantidad && !product.PermiteStockNegativo {
+			tx.Rollback()
+			productoNombre := product.Nombre
+			if variant != nil {
+				productoNombre = variant.Nombre
+			}
+			return utils.ErrorWithCode(c, fiber.StatusBadRequest, "INSUFFICIENT_STOCK", fmt.Sprintf("stock insuficiente para %s (disponible: %d)", productoNombre, stockActual))
+		}
+
+		itemTotal := precioUnitario * float64(item.Cantidad)
 		itemImpuesto := itemTotal * (impuestoPorcentaje / 100)
 
 		items[i] = models.OrderItem{
 			ProductoID:     item.ProductoID,
 			NombreProducto: product.Nombre,
-			SKU:            product.SKU,
+			SKU:            sku,
 			VarianteID:     item.VarianteID,
+			VarianteInfo:   variantInfo,
 			Cantidad:       item.Cantidad,
-			PrecioUnitario: item.PrecioUnitario,
+			PrecioUnitario: precioUnitario,
 			Impuesto:       itemImpuesto,
 			Total:          itemTotal + itemImpuesto,
 		}
@@ -144,9 +181,22 @@ func CreateOrder(c *fiber.Ctx) error {
 		impuesto += itemImpuesto
 
 		if product.ControlaInventario {
-			if err := tx.Model(&product).Update("stock", product.Stock-item.Cantidad).Error; err != nil {
-				tx.Rollback()
-				return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "STOCK_ERROR", "error al actualizar stock")
+			if variant != nil {
+				stockAnterior := variant.Stock
+				variant.Stock -= item.Cantidad
+				if err := tx.Save(variant).Error; err != nil {
+					tx.Rollback()
+					return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "STOCK_ERROR", "error al actualizar stock de variante")
+				}
+				registrarMovimientoStock(item.ProductoID, variant.ID, currentUser.ID, models.StockVenta, -item.Cantidad, stockAnterior, variant.Stock, "Venta Pedido")
+			} else {
+				stockAnterior := product.Stock
+				product.Stock -= item.Cantidad
+				if err := tx.Save(&product).Error; err != nil {
+					tx.Rollback()
+					return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "STOCK_ERROR", "error al actualizar stock")
+				}
+				registrarMovimientoStock(item.ProductoID, 0, currentUser.ID, models.StockVenta, -item.Cantidad, stockAnterior, product.Stock, "Venta Pedido")
 			}
 		}
 	}
@@ -160,15 +210,37 @@ func CreateOrder(c *fiber.Ctx) error {
 
 	total := subtotal + impuesto - descuento
 
+	clienteNombre := "Cliente Mostrador"
+	clienteEmail := ""
+	clienteTelefono := ""
+	clienteDocumento := ""
+
 	var clienteID uint
-	if input.ClienteID != nil {
+	if input.ClienteID != nil && *input.ClienteID > 0 {
 		clienteID = *input.ClienteID
+		var cliente models.User
+		if result := tx.First(&cliente, clienteID); result.Error == nil {
+			clienteNombre = cliente.Nombre
+			if cliente.Apellido != "" {
+				clienteNombre += " " + cliente.Apellido
+			}
+			clienteEmail = cliente.Email
+			clienteTelefono = cliente.Telefono
+			clienteDocumento = cliente.NumeroDocumento
+		}
 	}
 
 	order := models.Order{
 		NumeroOrden:        numeroOrden,
 		ClienteID:          clienteID,
-		ClienteNombre:      "Cliente Mostrador",
+		ClienteNombre:      clienteNombre,
+		ClienteEmail:       clienteEmail,
+		ClienteTelefono:    clienteTelefono,
+		ClienteDocumento:   clienteDocumento,
+		DireccionEnvio:     input.DireccionEnvio,
+		CiudadEnvio:        input.CiudadEnvio,
+		DepartamentoEnvio:  input.DepartamentoEnvio,
+		CodigoPostalEnvio:  input.CodigoPostalEnvio,
 		Estado:             "completado",
 		MetodoPago:         input.MetodoPago,
 		ReferenciaPago:     input.ReferenciaPago,
@@ -181,6 +253,7 @@ func CreateOrder(c *fiber.Ctx) error {
 		Total:              total,
 		VendedorID:         &currentUser.ID,
 		Notas:              input.Notas,
+		NotasInternas:      input.NotasInternas,
 		Items:              items,
 	}
 
@@ -191,19 +264,6 @@ func CreateOrder(c *fiber.Ctx) error {
 
 	if err := tx.Commit().Error; err != nil {
 		return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "COMMIT_ERROR", "error al confirmar la transacción")
-	}
-
-	// Guardar cliente si se proporciona
-	if input.ClienteID != nil {
-		var cliente models.User
-		if result := database.DB.First(&cliente, *input.ClienteID); result.Error == nil {
-			order.ClienteNombre = cliente.Nombre
-			order.ClienteEmail = cliente.Email
-		}
-	}
-
-	if result := database.DB.Create(&order); result.Error != nil {
-		return utils.ErrorWithCode(c, fiber.StatusInternalServerError, "CREATE_ERROR", "error al crear pedido")
 	}
 
 	// Cargar relaciones
