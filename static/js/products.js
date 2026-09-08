@@ -15,9 +15,11 @@ const state = {
   currentTab: 'general',
   categories: [],
   categoryAttributes: [],   // attributes for the selected category
+  variantAttributes: [],    // active attributes for generation: [{ id, name, values: [], suggestions: [] }]
   variantSelections: {},     // { attributeId: [selectedValues] }
   existingImages: [],        // images already stored on the server
-  existingVariants: [],      // variants already stored on the server
+  existingVariants: [],      // variants list (both existing and pending in memory)
+  variantPendingFiles: {},   // { variantKey: [File] }
 };
 
 // ============ ICONS (SVG) ============
@@ -292,6 +294,8 @@ function openModal(product = null) {
   state.selectedImages = [];
   state.existingImages = [];
   state.existingVariants = [];
+  state.variantPendingFiles = {};
+  state.variantAttributes = [];
   state.categoryAttributes = [];
   state.variantSelections = {};
   state.currentTab = 'general';
@@ -308,7 +312,7 @@ function openModal(product = null) {
   $('#prod-sku').value = product?.sku || '';
   $('#prod-nombre').value = product?.nombre || '';
   $('#prod-descripcion').value = product?.descripcion || '';
-  $('#prod-estado').value = product?.estado || 'borrador';
+  $('#prod-estado').value = product?.estado || 'activo';
 
   $('#prod-precio').value = product?.precio ?? '';
   $('#prod-precio-anterior').value = product?.precio_anterior ?? '';
@@ -316,12 +320,10 @@ function openModal(product = null) {
   $('#prod-stock').value = product?.stock ?? 0;
   $('#prod-stock-minimo').value = product?.stock_minimo ?? 5;
 
-  // Reset tab & images
-  switchTab('general');
   renderImagePreviews();
   renderExistingImages([]);
+  renderAttributeBuilder();
   renderVariantsTable([], product?.precio);
-  renderAttributeSelectors([]);
 
   // If editing load images + variants + attributes
   if (product) {
@@ -338,6 +340,9 @@ function closeModal() {
   if (m) m.classList.remove('active');
   state.editingProduct = null;
   state.selectedImages = [];
+  state.existingVariants = [];
+  state.variantPendingFiles = {};
+  state.variantAttributes = [];
 }
 
 function switchTab(tabName) {
@@ -346,150 +351,153 @@ function switchTab(tabName) {
 
 function buildModal() {
   const overlay = el('div', { className: 'modal-overlay', id: 'product-modal', onClick(e) { if (e.target === this) closeModal(); } }, [
-    el('div', { className: 'modal modal--product', style: { maxWidth: '850px', width: '95vw' } }, [
+    el('div', { className: 'modal modal--product' }, [
       // Header
       el('div', { className: 'modal-header' }, [
         el('h2', { className: 'modal-title', id: 'modal-title', textContent: 'Producto' }),
-        el('button', { className: 'modal-close', onClick: closeModal, innerHTML: '&times;' }),
+        el('button', { className: 'modal-close', onClick: closeModal, innerHTML: '&times;', 'aria-label': 'Cerrar' }),
       ]),
 
       // Body
-      el('div', { className: 'modal-body', id: 'modal-body', style: { maxHeight: 'calc(90vh - 130px)', overflowY: 'auto', padding: '1.5rem' } }),
+      el('div', { className: 'modal-body', id: 'modal-body' }),
 
       // Footer
       el('div', { className: 'modal-footer' }, [
         el('button', { className: 'btn btn-secondary', onClick: closeModal, textContent: 'Cancelar' }),
-        el('button', { className: 'btn btn-primary', id: 'btn-save-product', onClick: saveProduct, textContent: 'Guardar Producto' }),
+        el('button', { className: 'btn btn-primary', id: 'btn-save-product', onClick: saveProduct, textContent: 'Guardar' }),
       ]),
     ]),
   ]);
   
   const body = overlay.querySelector('#modal-body');
   body.innerHTML = `
-    <form id="product-form" onsubmit="return false" style="display:flex; flex-direction:column; gap:1.75rem;">
+    <form id="product-form" onsubmit="return false" class="prod-modal-form">
       
       <!-- Sección 1: Información General y Precios -->
-      <div class="modal-section-card">
-        <h3 class="modal-section-title">Información del Producto</h3>
+      <div class="prod-form-section">
+        <div class="prod-section-header">
+          <span class="prod-section-title">
+            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            Información General
+          </span>
+        </div>
         
-        <div class="form-row">
-          <div class="form-group" style="flex:1">
+        <div class="prod-grid prod-grid--header">
+          <div class="form-group prod-col--sku">
             <label class="form-label" for="prod-sku">SKU *</label>
-            <input type="text" id="prod-sku" class="form-input" placeholder="SKU-001" data-validate="required">
+            <input type="text" id="prod-sku" class="form-input" placeholder="ej. CAM-001" required data-validate="required">
           </div>
-          <div class="form-group" style="flex:2">
+          <div class="form-group prod-col--name">
             <label class="form-label" for="prod-nombre">Nombre *</label>
-            <input type="text" id="prod-nombre" class="form-input" placeholder="Nombre del producto" data-validate="required">
+            <input type="text" id="prod-nombre" class="form-input" placeholder="ej. Camiseta Polo Premium" required data-validate="required">
           </div>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label" for="prod-descripcion">Descripción</label>
-          <textarea id="prod-descripcion" class="form-input" rows="2" placeholder="Descripción corta del producto…" style="resize:vertical"></textarea>
-        </div>
-
-        <div class="form-row">
-          <div class="form-group" style="flex:1">
+          <div class="form-group prod-col--cat">
             <label class="form-label" for="prod-categoria">Categoría *</label>
-            <select id="prod-categoria" class="form-select" data-validate="required">
+            <select id="prod-categoria" class="form-select" required data-validate="required">
               <option value="">Seleccionar…</option>
             </select>
           </div>
-          <div class="form-group" style="flex:1">
+          <div class="form-group prod-col--status">
             <label class="form-label" for="prod-estado">Estado</label>
             <select id="prod-estado" class="form-select">
-              <option value="borrador">Borrador</option>
               <option value="activo">Activo</option>
+              <option value="borrador">Borrador</option>
               <option value="inactivo">Inactivo</option>
             </select>
           </div>
         </div>
 
-        <div class="form-row" style="margin-top: 0.75rem; border-top: 1px dashed var(--border); padding-top: 1rem;">
-          <div class="form-group" style="flex:1">
-            <label class="form-label" for="prod-precio">Precio de Venta *</label>
-            <input type="number" id="prod-precio" class="form-input" min="0" step="1" placeholder="0" data-validate="required|number">
+        <div class="form-group" style="margin:0;">
+          <label class="form-label" for="prod-descripcion">Descripción</label>
+          <textarea id="prod-descripcion" class="form-input prod-textarea" rows="2" placeholder="Detalles, material o especificaciones del producto…"></textarea>
+        </div>
+
+        <div class="prod-grid prod-grid--pricing">
+          <div class="form-group">
+            <label class="form-label" for="prod-precio">Precio venta base *</label>
+            <input type="number" id="prod-precio" class="form-input" min="0" step="1" placeholder="0" required data-validate="required|number">
           </div>
-          <div class="form-group" style="flex:1">
+          <div class="form-group">
             <label class="form-label" for="prod-precio-anterior">Precio anterior</label>
             <input type="number" id="prod-precio-anterior" class="form-input" min="0" step="1" placeholder="0">
           </div>
-        </div>
-
-        <div class="form-row">
-          <div class="form-group" style="flex:1">
-            <label class="form-label" for="prod-costo">Costo de compra</label>
+          <div class="form-group">
+            <label class="form-label" for="prod-costo">Costo</label>
             <input type="number" id="prod-costo" class="form-input" min="0" step="1" placeholder="0">
           </div>
-          <div class="form-group" style="flex:1">
+          <div class="form-group">
             <label class="form-label" for="prod-stock-minimo">Stock mínimo</label>
             <input type="number" id="prod-stock-minimo" class="form-input" min="0" step="1" value="5">
           </div>
-        </div>
-
-        <div class="form-row">
-          <div class="form-group" style="flex:1">
-            <label class="form-label" for="prod-stock">Stock total (se suma automáticamente de variantes)</label>
+          <div class="form-group">
+            <label class="form-label" for="prod-stock" title="Calculado automáticamente al agregar variantes">Stock total</label>
             <input type="number" id="prod-stock" class="form-input" min="0" step="1" value="0">
           </div>
         </div>
       </div>
 
-      <!-- Sección 2: Imágenes Principales -->
-      <div class="modal-section-card">
-        <h3 class="modal-section-title">Imágenes Principales</h3>
+      <!-- Sección 2: Galería / Imágenes Principales -->
+      <div class="prod-form-section">
+        <div class="prod-section-header">
+          <span class="prod-section-title">
+            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            Galería General del Producto
+          </span>
+          <span id="img-count-badge" class="badge badge-gray" style="font-size:.7rem">0 fotos</span>
+        </div>
         
-        <div class="img-upload-zone" id="img-upload-zone">
-          <input type="file" id="img-file-input" accept="image/*" multiple hidden>
-          <div class="img-upload-zone__content">
-            <svg width="32" height="32" fill="none" stroke="var(--text-mut)" stroke-width="1.5" viewBox="0 0 24 24">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-              <polyline points="17 8 12 3 7 8"/>
-              <line x1="12" y1="3" x2="12" y2="15"/>
-            </svg>
-            <p style="margin:.35rem 0 0; color:var(--text-sec); font-size:13px;">Arrastra imágenes del producto aquí o <span style="color:var(--accent); cursor:pointer; text-decoration:underline">selecciona archivos</span></p>
-            <span style="font-size:.7rem; color:var(--text-mut)">PNG, JPG, WEBP — máx. 5 MB</span>
+        <div class="prod-img-layout">
+          <div class="img-upload-zone" id="img-upload-zone">
+            <input type="file" id="img-file-input" accept="image/*" multiple hidden>
+            <div class="img-upload-zone__content">
+              <svg width="22" height="22" fill="none" stroke="var(--accent)" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+              <p class="img-upload-zone__text">Arrastra imágenes aquí o <span class="img-upload-link">examinar</span></p>
+              <span class="img-upload-zone__hint">PNG, JPG, WEBP — máx. 5 MB</span>
+            </div>
           </div>
-        </div>
-        
-        <div id="img-previews" class="img-preview-grid" style="margin-top:1rem"></div>
-        <div id="img-upload-actions" style="display:none; margin-top:.75rem; text-align:right">
-          <button type="button" class="btn btn-sm btn-secondary" onclick="clearSelectedImages()">Limpiar</button>
-          <button type="button" class="btn btn-sm btn-primary" onclick="uploadSelectedImages()" style="margin-left:.5rem">
-            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right:.25rem"><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            Subir
-          </button>
-        </div>
 
-        <div style="margin-top:1.25rem">
-          <h4 style="color:var(--text); margin:0 0 .75rem; display:flex; align-items:center; gap:.5rem; font-size:13px;">
-            Galería principal <span id="img-count-badge" class="badge badge-gray" style="font-size:.7rem">0 fotos</span>
-          </h4>
-          <div id="img-existing" class="img-existing-grid"></div>
+          <div class="prod-img-content">
+            <div id="img-previews" class="img-preview-grid"></div>
+            <div id="img-upload-actions" style="display:none; margin-bottom:.5rem; text-align:right">
+              <button type="button" class="btn btn-sm btn-secondary" onclick="clearSelectedImages()">Limpiar</button>
+              <button type="button" id="btn-upload-photos-direct" class="btn btn-sm btn-primary" onclick="uploadSelectedImages()" style="margin-left:.4rem">
+                <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right:.25rem"><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Subir fotos
+              </button>
+            </div>
+            <div id="img-existing" class="img-existing-grid"></div>
+          </div>
         </div>
       </div>
 
       <!-- Sección 3: Variantes -->
-      <div class="modal-section-card" id="modal-section-variants">
-        <h3 class="modal-section-title">Variantes del Producto</h3>
+      <div class="prod-form-section" id="modal-section-variants">
+        <div class="prod-section-header">
+          <div>
+            <span class="prod-section-title">
+              <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+              Variantes y Opciones (Tallas, Colores, etc.)
+            </span>
+            <p style="margin:2px 0 0 0; font-size:11.5px; color:var(--text-mut);">Configura atributos para generar variantes con precios individuales y varias fotos por variante.</p>
+          </div>
+        </div>
         
-        <div id="variant-attrs-section">
-          <h4 style="color:var(--text); margin:0 0 .5rem; font-size:13px;">Atributos de la categoría</h4>
-          <div id="variant-attrs-container" style="margin-bottom:1rem"></div>
-          <button type="button" class="btn btn-sm btn-primary" id="btn-generate-variants" onclick="handleGenerateVariants()" style="margin-bottom:1.25rem">
-            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right:.25rem"><path d="M12 5v14M5 12h14"/></svg>
-            Generar Variantes
-          </button>
+        <div id="variant-attrs-section" class="variant-attrs-box">
+          <div id="variant-attrs-container"></div>
+          <div id="variant-gen-banner" class="variant-gen-banner"></div>
+          <div style="display:flex; justify-content:flex-start; margin-top:0.6rem;">
+            <button type="button" class="btn btn-sm btn-primary" id="btn-generate-variants" onclick="handleGenerateVariants()">
+              <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right:.25rem"><path d="M12 5v14M5 12h14"/></svg>
+              Generar combinaciones
+            </button>
+          </div>
         </div>
         
         <div id="variants-table-wrapper"></div>
-        
-        <div id="variant-actions" style="display:none; margin-top:.75rem; display:flex; justify-content:flex-end; gap:.5rem">
-          <button type="button" class="btn btn-sm btn-primary" id="btn-bulk-save" onclick="handleBulkSave()">
-            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right:.25rem"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg>
-            Guardar variantes
-          </button>
-        </div>
       </div>
 
     </form>
@@ -503,11 +511,38 @@ function buildModal() {
 //                     SAVE / EDIT / DELETE
 // ============================================================
 async function saveProduct() {
-  // Validate general + prices tabs
   if (!FormValidator.validateForm('product-form')) {
-    switchTab('general');
     return;
   }
+
+  const variantCards = $$('#variants-list-container .variant-card');
+  let totalVariantStock = 0;
+  const variantesPayload = variantCards.map(card => {
+    let atributos = [];
+    try { atributos = JSON.parse(card.dataset.attributes || '[]'); } catch(e) {}
+    const stock = Number($('.var-stock', card)?.value) || 0;
+    totalVariantStock += stock;
+    const idVal = card.dataset.variantId;
+    const key = card.dataset.variantKey;
+
+    return {
+      id: idVal && idVal !== '' && idVal !== 'null' ? Number(idVal) : null,
+      temp_key: key,
+      sku: $('.var-sku', card)?.value.trim() || '',
+      barcode: $('.var-barcode', card)?.value.trim() || '',
+      nombre: card.dataset.variantName || '',
+      precio_override: Number($('.var-precio', card)?.value) || 0,
+      stock: stock,
+      stock_minimo: 5,
+      imagen: card.dataset.imageUrls || '',
+      activa: $('.var-activo', card)?.checked ?? true,
+      atributos: atributos.map(a => ({
+        attribute_id: Number(a.attribute_id || a.atributo_id || a.AttributeID || 0),
+        attribute_name: String(a.attribute_name || a.atributo_nombre || a.nombre || a.AttributeName || ''),
+        value: String(a.value || a.valor || a.Value || '')
+      }))
+    };
+  });
 
   const body = {
     sku: $('#prod-sku').value.trim(),
@@ -518,8 +553,10 @@ async function saveProduct() {
     precio: Number($('#prod-precio').value) || 0,
     precio_anterior: Number($('#prod-precio-anterior').value) || null,
     costo: Number($('#prod-costo').value) || null,
-    stock: Number($('#prod-stock').value) || 0,
+    stock: variantCards.length ? totalVariantStock : (Number($('#prod-stock').value) || 0),
     stock_minimo: Number($('#prod-stock-minimo').value) || 5,
+    tiene_variantes: variantCards.length > 0,
+    variantes: !state.editingProduct ? variantesPayload : undefined
   };
 
   const btn = $('#btn-save-product');
@@ -528,20 +565,77 @@ async function saveProduct() {
 
   try {
     let res;
+    let savedId;
+
     if (state.editingProduct) {
-      res = await api(`/products/${state.editingProduct.id}`, { method: 'PUT', json: body });
+      savedId = state.editingProduct.id;
+      res = await api(`/products/${savedId}`, { method: 'PUT', json: body });
+
+      // Save/Update variants in edit mode
+      if (variantesPayload.length > 0) {
+        const existing = variantesPayload.filter(v => v.id != null);
+        const brandNew = variantesPayload.filter(v => v.id == null);
+
+        if (existing.length > 0) {
+          await api(`/products/${savedId}/variants/bulk`, {
+            method: 'PUT',
+            json: { variants: existing }
+          });
+          for (const ev of existing) {
+            if (ev.id && state.variantPendingFiles[String(ev.id)]?.length) {
+              const formData = new FormData();
+              state.variantPendingFiles[String(ev.id)].forEach(f => formData.append('images', f));
+              await apiUpload(`/products/${savedId}/variants/${ev.id}/images`, formData).catch(() => {});
+            }
+          }
+        }
+
+        for (const nv of brandNew) {
+          const created = await api(`/products/${savedId}/variants`, {
+            method: 'POST',
+            json: {
+              sku: nv.sku,
+              barcode: nv.barcode,
+              nombre: nv.nombre,
+              precio_override: nv.precio_override,
+              stock: nv.stock,
+              stock_minimo: nv.stock_minimo,
+              imagen: nv.imagen,
+              atributos: nv.atributos
+            }
+          });
+          if (nv.temp_key && state.variantPendingFiles[nv.temp_key]?.length && created.data?.id) {
+            const formData = new FormData();
+            state.variantPendingFiles[nv.temp_key].forEach(f => formData.append('images', f));
+            await apiUpload(`/products/${savedId}/variants/${created.data.id}/images`, formData).catch(() => {});
+          }
+        }
+      }
     } else {
+      // Create product + all variants atomically
       res = await api('/products', { method: 'POST', json: body });
+      savedId = res.data?.id;
+
+      // Upload pending variant images if any
+      if (savedId && res.data?.variantes && res.data.variantes.length) {
+        for (let i = 0; i < res.data.variantes.length; i++) {
+          const createdVar = res.data.variantes[i];
+          const matchingInput = variantesPayload.find(vp => vp.sku === createdVar.sku) || variantesPayload[i];
+          if (matchingInput && matchingInput.temp_key && state.variantPendingFiles[matchingInput.temp_key]?.length) {
+            const formData = new FormData();
+            state.variantPendingFiles[matchingInput.temp_key].forEach(f => formData.append('images', f));
+            await apiUpload(`/products/${savedId}/variants/${createdVar.id}/images`, formData).catch(() => {});
+          }
+        }
+      }
     }
 
-    const savedId = res.data?.id || state.editingProduct?.id;
-
-    // Upload pending images if any
+    // Upload pending general gallery images if any
     if (state.selectedImages.length && savedId) {
       await uploadImages(savedId);
     }
 
-    Toast.success('Éxito', res.message || 'Producto guardado correctamente');
+    Toast.success('Éxito', res.message || 'Producto y variantes guardados correctamente');
     closeModal();
     loadProducts(state.currentPage);
   } catch (err) {
@@ -632,7 +726,13 @@ function renderImagePreviews() {
     return;
   }
 
-  if (actions) actions.style.display = 'block';
+  if (actions) {
+    actions.style.display = 'block';
+    const uploadBtn = $('#btn-upload-photos-direct');
+    if (uploadBtn) {
+      uploadBtn.style.display = state.editingProduct ? 'inline-flex' : 'none';
+    }
+  }
 
   container.innerHTML = state.selectedImages.map((f, i) => {
     const url = URL.createObjectURL(f);
@@ -657,7 +757,7 @@ function clearSelectedImages() {
 
 async function uploadSelectedImages() {
   if (!state.editingProduct) {
-    Toast.error('Aviso', 'Guarda el producto primero antes de subir imágenes');
+    Toast.info('Aviso', 'Las fotos seleccionadas se guardarán automáticamente al hacer clic en "Guardar"');
     return;
   }
   if (!state.selectedImages.length) return;
@@ -753,18 +853,15 @@ async function handleDeleteImage(imageId) {
 
 
 // ============================================================
-//                   VARIANT MANAGEMENT
+//                   VARIANT & ATTRIBUTE MANAGEMENT
 // ============================================================
 async function loadCategoryAttributes(categoryId) {
   if (!categoryId) {
     state.categoryAttributes = [];
-    state.variantSelections = {};
-    renderAttributeSelectors([]);
     return;
   }
 
   try {
-    // Fetch category-specific + global attributes in parallel
     const [catRes, globalRes] = await Promise.all([
       api(`/attributes/category/${categoryId}`),
       api('/attributes/global'),
@@ -773,90 +870,290 @@ async function loadCategoryAttributes(categoryId) {
     const catAttrs = catRes.data || [];
     const globalAttrs = globalRes.data || [];
 
-    // Merge, avoid duplicates by id
     const seen = new Set(catAttrs.map(a => a.id));
     const merged = [...catAttrs];
     globalAttrs.forEach(a => { if (!seen.has(a.id)) merged.push(a); });
 
     state.categoryAttributes = merged;
-    state.variantSelections = {};
-    renderAttributeSelectors(merged);
+    if (merged.length > 0 && state.variantAttributes.length === 0) {
+      merged.forEach(ca => {
+        const vals = ca.valores || ca.values || [];
+        state.variantAttributes.push({
+          id: ca.id,
+          name: ca.nombre || ca.name,
+          values: vals.slice(0, 3),
+          suggestions: vals
+        });
+      });
+      renderAttributeBuilder();
+    }
   } catch (err) {
     console.error('Error loading attributes:', err);
-    renderAttributeSelectors([]);
   }
 }
 
-function renderAttributeSelectors(attributes) {
+const ATTRIBUTE_PRESETS = [
+  { name: 'Talla', defaultVals: ['S', 'M', 'L'], suggestions: ['XS', 'S', 'M', 'L', 'XL', 'XXL', '38', '40', '42'] },
+  { name: 'Color', defaultVals: ['Negro', 'Blanco'], suggestions: ['Negro', 'Blanco', 'Azul', 'Rojo', 'Verde', 'Gris', 'Amarillo', 'Rosado', 'Beige'] },
+  { name: 'Material', defaultVals: ['Algodón'], suggestions: ['Algodón', 'Poliéster', 'Cuero', 'Sintético', 'Lana', 'Seda'] },
+];
+
+function handleAddAttributePreset(presetName) {
+  const existing = state.variantAttributes.find(a => a.name.toLowerCase() === presetName.toLowerCase());
+  if (existing) {
+    Toast.info('Atributo ya añadido', `"${presetName}" ya está en la lista.`);
+    return;
+  }
+  const preset = ATTRIBUTE_PRESETS.find(p => p.name.toLowerCase() === presetName.toLowerCase()) || { name: presetName, defaultVals: [], suggestions: [] };
+  state.variantAttributes.push({
+    name: preset.name,
+    values: [...preset.defaultVals],
+    suggestions: [...preset.suggestions]
+  });
+  renderAttributeBuilder();
+}
+
+function handlePromptAddCustomAttribute() {
+  const name = prompt('Nombre del nuevo atributo (ej. Capacidad, Estilo, Género):');
+  if (!name || !name.trim()) return;
+  const cleanName = name.trim();
+  const existing = state.variantAttributes.find(a => a.name.toLowerCase() === cleanName.toLowerCase());
+  if (existing) {
+    Toast.info('Atributo existente', `El atributo "${cleanName}" ya está en la lista.`);
+    return;
+  }
+  state.variantAttributes.push({
+    name: cleanName,
+    values: [],
+    suggestions: []
+  });
+  renderAttributeBuilder();
+}
+
+function handleRemoveAttribute(attrIdx) {
+  state.variantAttributes.splice(attrIdx, 1);
+  renderAttributeBuilder();
+}
+
+function handleAddAttributeValue(attrIdx, val) {
+  const attr = state.variantAttributes[attrIdx];
+  if (!attr) return;
+  if (!attr.values) attr.values = [];
+  const cleanVal = String(val).trim();
+  if (cleanVal && !attr.values.includes(cleanVal)) {
+    attr.values.push(cleanVal);
+  }
+  renderAttributeBuilder();
+}
+
+function handleRemoveAttributeValue(attrIdx, valIdx) {
+  const attr = state.variantAttributes[attrIdx];
+  if (!attr || !attr.values) return;
+  attr.values.splice(valIdx, 1);
+  renderAttributeBuilder();
+}
+
+function handleAddCustomValueFromInput(attrIdx) {
+  const input = $(`#attr-input-${attrIdx}`);
+  if (!input) return;
+  const val = input.value.trim();
+  if (!val) return;
+  handleAddAttributeValue(attrIdx, val);
+  input.value = '';
+}
+
+function renderAttributeBuilder() {
   const container = $('#variant-attrs-container');
   if (!container) return;
 
-  if (!attributes.length) {
-    container.innerHTML = `<p style="color:var(--text-mut);font-size:.85rem">Selecciona una categoría para ver los atributos disponibles.</p>`;
-    return;
-  }
+  const validAttrs = state.variantAttributes.filter(a => a.values && a.values.length > 0);
+  const totalCombos = validAttrs.reduce((acc, a) => acc * a.values.length, validAttrs.length > 0 ? 1 : 0);
 
-  container.innerHTML = attributes.map(attr => {
-    const values = attr.valores || attr.values || [];
-    if (!values.length) return '';
-
-    const chips = values.map(v => {
-      const valStr = typeof v === 'string' ? v : v.valor || v.value || v.nombre || '';
-      const selected = (state.variantSelections[attr.id] || []).includes(valStr);
-      return `<button type="button" class="attr-chip ${selected ? 'attr-chip--selected' : ''}"
-                onclick="toggleAttributeValue(${attr.id}, '${esc(valStr)}')">${esc(valStr)}</button>`;
-    }).join('');
-
+  const presetButtons = ATTRIBUTE_PRESETS.map(p => {
+    const isAdded = state.variantAttributes.some(a => a.name.toLowerCase() === p.name.toLowerCase());
     return `
-      <div class="attr-group">
-        <label class="form-label" style="margin-bottom:.35rem">${esc(attr.nombre || attr.name)}</label>
-        <div class="attr-chips">${chips}</div>
-      </div>`;
+      <button type="button" class="btn-attr-preset ${isAdded ? 'btn-attr-preset--active' : ''}" onclick="handleAddAttributePreset('${p.name}')">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        ${p.name}
+      </button>
+    `;
   }).join('');
-}
 
-function toggleAttributeValue(attrId, value) {
-  if (!state.variantSelections[attrId]) state.variantSelections[attrId] = [];
-  const arr = state.variantSelections[attrId];
-  const idx = arr.indexOf(value);
-  if (idx >= 0) arr.splice(idx, 1);
-  else arr.push(value);
-  renderAttributeSelectors(state.categoryAttributes);
-}
+  let html = `
+    <div class="attr-builder-top">
+      <span class="attr-builder-label">Atributos disponibles:</span>
+      <div class="attr-presets-row">
+        ${presetButtons}
+        <button type="button" class="btn-attr-preset" onclick="handlePromptAddCustomAttribute()">
+          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Otro
+        </button>
+      </div>
+    </div>
+  `;
 
-async function handleGenerateVariants() {
-  if (!state.editingProduct) {
-    Toast.error('Aviso', 'Guarda el producto primero antes de generar variantes');
-    return;
-  }
+  if (state.variantAttributes.length === 0) {
+    html += `
+      <div class="attr-empty-prompt">
+        <svg width="18" height="18" fill="none" stroke="var(--accent)" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        <span>Haz clic en <strong>+ Talla</strong> o <strong>+ Color</strong> arriba para definir las opciones de tu producto.</span>
+      </div>
+    `;
+  } else {
+    html += '<div class="attr-rows-list">';
+    state.variantAttributes.forEach((attr, attrIdx) => {
+      const matchedPreset = ATTRIBUTE_PRESETS.find(p => p.name.toLowerCase() === attr.name.toLowerCase());
+      const suggestions = attr.suggestions || matchedPreset?.suggestions || [];
+      const unused = suggestions.filter(s => !(attr.values || []).includes(s));
 
-  // Build the selections payload
-  const atributos = Object.entries(state.variantSelections)
-    .filter(([, vals]) => vals.length > 0)
-    .map(([id, valores]) => ({ atributo_id: Number(id), valores }));
+      const tags = (attr.values || []).map((val, valIdx) => `
+        <span class="attr-val-tag">
+          ${esc(val)}
+          <button type="button" class="attr-val-tag-del" onclick="handleRemoveAttributeValue(${attrIdx}, ${valIdx})" title="Quitar">&times;</button>
+        </span>
+      `).join('');
 
-  if (!atributos.length) {
-    Toast.error('Aviso', 'Selecciona al menos un valor de atributo');
-    return;
-  }
+      const suggestionPills = unused.slice(0, 7).map(s => `
+        <button type="button" class="attr-suggestion-chip" onclick="handleAddAttributeValue(${attrIdx}, '${esc(s)}')">+ ${esc(s)}</button>
+      `).join('');
 
-  const btn = $('#btn-generate-variants');
-  btn.disabled = true;
-  btn.textContent = 'Generando…';
+      html += `
+        <div class="attr-row-card">
+          <div class="attr-row-header">
+            <div class="attr-row-title">
+              <span class="attr-icon-dot"></span>
+              <strong>${esc(attr.name)}</strong>
+              <span class="attr-row-badge">${(attr.values || []).length} opciones</span>
+            </div>
+            <button type="button" class="btn-attr-row-del" onclick="handleRemoveAttribute(${attrIdx})" title="Eliminar atributo">
+              <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </button>
+          </div>
 
-  try {
-    const res = await api(`/products/${state.editingProduct.id}/variants/generate`, {
-      method: 'POST',
-      json: { atributos },
+          <div class="attr-row-body">
+            <div class="attr-val-tags-container">
+              ${tags || '<span class="attr-val-empty-hint">Sin opciones agregadas. Escribe o selecciona sugerencias abajo:</span>'}
+            </div>
+
+            <div class="attr-input-group">
+              <input type="text" id="attr-input-${attrIdx}" class="form-input form-input--sm attr-custom-input" placeholder="Escribe una opción (ej. ${attr.name === 'Talla' ? 'XL, 38' : (attr.name === 'Color' ? 'Azul Marino' : 'Opción')}) y presiona Enter" onkeydown="if(event.key==='Enter'){event.preventDefault();handleAddCustomValueFromInput(${attrIdx});}">
+              <button type="button" class="btn btn-sm btn-secondary" onclick="handleAddCustomValueFromInput(${attrIdx})">Agregar</button>
+            </div>
+
+            ${suggestionPills ? `
+              <div class="attr-suggestions-bar">
+                <span class="attr-suggestions-label">Sugerencias:</span>
+                <div class="attr-suggestions-list">${suggestionPills}</div>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      `;
     });
-    Toast.success('Variantes', res.message || 'Variantes generadas correctamente');
-    loadVariants(state.editingProduct.id);
-  } catch (err) {
-    Toast.error('Error', err.message);
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right:.25rem"><path d="M12 5v14M5 12h14"/></svg> Generar Variantes`;
+    html += '</div>';
   }
+
+  container.innerHTML = html;
+
+  // Banner status
+  const banner = $('#variant-gen-banner');
+  if (banner) {
+    if (totalCombos > 0) {
+      const summaryParts = validAttrs.map(a => `${a.values.length} ${a.name.toLowerCase()}`);
+      banner.className = 'variant-gen-banner variant-gen-banner--ready';
+      banner.innerHTML = `
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        <span>Se generarán <strong>${totalCombos} combinaciones</strong> (${summaryParts.join(' × ')}). Cada variante tendrá precio, stock y fotos individuales.</span>
+      `;
+    } else {
+      banner.className = 'variant-gen-banner variant-gen-banner--empty';
+      banner.innerHTML = `
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span>Agrega al menos una opción a tus atributos para generar las variantes disponibles.</span>
+      `;
+    }
+  }
+
+  // Button text
+  const genBtn = $('#btn-generate-variants');
+  if (genBtn) {
+    genBtn.innerHTML = `
+      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right:.25rem"><path d="M12 5v14M5 12h14"/></svg>
+      Generar ${totalCombos > 0 ? `${totalCombos} ` : ''}combinaciones
+    `;
+  }
+}
+
+function handleGenerateVariants() {
+  const validAttrs = state.variantAttributes.filter(a => a.values && a.values.length > 0);
+  const totalCombos = validAttrs.reduce((acc, a) => acc * a.values.length, validAttrs.length > 0 ? 1 : 0);
+
+  if (totalCombos === 0) {
+    Toast.error('Atributos requeridos', 'Añade al menos un atributo (ej. Talla o Color) con sus opciones antes de generar combinaciones.');
+    return;
+  }
+
+  const baseSku = $('#prod-sku')?.value.trim() || 'PROD';
+  const baseName = $('#prod-nombre')?.value.trim() || '';
+  const basePrice = Number($('#prod-precio')?.value) || 0;
+  const baseStockMinimo = Number($('#prod-stock-minimo')?.value) || 5;
+
+  let combinations = [[]];
+  for (const attr of validAttrs) {
+    const nextCombos = [];
+    for (const combo of combinations) {
+      for (const val of attr.values) {
+        nextCombos.push([
+          ...combo,
+          {
+            attribute_id: attr.id || 0,
+            attribute_name: attr.name,
+            value: val
+          }
+        ]);
+      }
+    }
+    combinations = nextCombos;
+  }
+
+  syncVariantsFromDOM();
+
+  const generated = combinations.map((combo, idx) => {
+    const skuSuffix = combo.map(a => a.value.replace(/[^a-zA-Z0-9-]/g, '').toUpperCase()).join('-');
+    const cleanBaseSku = baseSku.replace(/[^a-zA-Z0-9-]/g, '').toUpperCase();
+    const varSku = cleanBaseSku ? `${cleanBaseSku}-${skuSuffix}` : skuSuffix;
+
+    const nameSuffix = combo.map(a => `${a.attribute_name}: ${a.value}`).join(', ');
+    const varName = baseName ? `${baseName} (${nameSuffix})` : nameSuffix;
+
+    const existing = state.existingVariants.find(ev => ev.sku === varSku);
+    if (existing) {
+      return {
+        ...existing,
+        nombre: varName,
+        atributos: combo
+      };
+    }
+
+    return {
+      id: null,
+      temp_key: 'tmp_' + Date.now() + '_' + idx,
+      sku: varSku,
+      barcode: '',
+      nombre: varName,
+      precio: basePrice,
+      precio_override: basePrice,
+      stock: 0,
+      stock_minimo: baseStockMinimo,
+      imagen: '',
+      activa: true,
+      atributos: combo
+    };
+  });
+
+  state.existingVariants = generated;
+  renderVariantsTable(state.existingVariants, basePrice);
+  Toast.success('Variantes generadas', `${generated.length} combinaciones listas. Ahora puedes ajustar los precios individuales, stock y subir fotos por variante.`);
 }
 
 async function loadVariants(productId) {
@@ -868,6 +1165,25 @@ async function loadVariants(productId) {
     const res = await api(`/products/${productId}/variants`);
     state.existingVariants = res.data || [];
     const basePrice = state.editingProduct?.precio || 0;
+
+    // Reconstruct attributes from existing variants
+    const attrMap = {};
+    state.existingVariants.forEach(v => {
+      (v.atributos || []).forEach(a => {
+        const name = a.attribute_name || a.atributo_nombre || a.nombre || a.AttributeName || 'Atributo';
+        const val = a.value || a.valor || a.Value || '';
+        if (!attrMap[name]) attrMap[name] = new Set();
+        if (val) attrMap[name].add(val);
+      });
+    });
+
+    state.variantAttributes = Object.entries(attrMap).map(([name, valSet]) => ({
+      name: name,
+      values: Array.from(valSet),
+      suggestions: []
+    }));
+
+    renderAttributeBuilder();
     renderVariantsTable(state.existingVariants, basePrice);
   } catch (err) {
     wrapper.innerHTML = emptyState('Error al cargar variantes', 'warning');
@@ -876,108 +1192,111 @@ async function loadVariants(productId) {
 
 function renderVariantsTable(variants, basePrice) {
   const wrapper = $('#variants-table-wrapper');
-  const actionsDiv = $('#variant-actions');
   if (!wrapper) return;
 
   if (!variants.length) {
-    wrapper.innerHTML = emptyState('Sin variantes creadas', 'variantEmpty');
-    if (actionsDiv) actionsDiv.style.display = 'none';
+    wrapper.innerHTML = emptyState('Sin variantes generadas aún', 'variantEmpty');
     $('#prod-stock').disabled = false;
     return;
   }
 
   $('#prod-stock').disabled = true;
 
-  if (actionsDiv) actionsDiv.style.display = 'flex';
-
   let totalStock = 0;
   const cardsHTML = variants.map((v, i) => {
+    const key = v.id ? String(v.id) : (v.temp_key || ('tmp_' + i));
     const attrChips = (v.atributos || []).map(a => {
-      const color = chipColor(a.atributo_nombre || a.nombre || '');
-      return `<span class="variant-chip" style="background:${color}; font-size: 11px; padding: 2px 8px; border-radius: 12px; font-weight: 600; color: #fff; margin-right: 4px;">${esc(a.atributo_nombre || a.nombre || '')}: ${esc(a.valor || a.value || '')}</span>`;
+      const attrName = a.attribute_name || a.atributo_nombre || a.nombre || a.AttributeName || '';
+      const attrVal = a.value || a.valor || a.Value || '';
+      const color = chipColor(attrName);
+      return `<span class="variant-chip" style="background:${color}">${esc(attrName)}: ${esc(attrVal)}</span>`;
     }).join('');
 
     const stock = Number(v.stock) || 0;
     totalStock += stock;
     const active = v.activa !== false && v.activo !== false;
-    const images = v.imagen ? v.imagen.split(';').filter(x => x) : [];
-    
+
+    // Saved images on server
+    const savedImages = v.imagen ? v.imagen.split(';').filter(x => x) : [];
+    // Pending local files
+    const pendingFiles = state.variantPendingFiles[key] || [];
+    const totalImgs = savedImages.length + pendingFiles.length;
+
     let imgThumbnails = '';
-    if (images.length > 0) {
-      imgThumbnails = images.map((url, imgIdx) => `
-        <div class="var-img-thumbnail" style="position:relative; width:60px; height:60px; border-radius:8px; overflow:hidden; border:1px solid var(--border); background:var(--bg-surf);">
-          <img src="${url}" style="width:100%; height:100%; object-fit:cover;">
-          <button type="button" class="var-img-remove-btn" onclick="handleRemoveVariantImage(${v.id}, ${imgIdx})" style="position:absolute; top:2px; right:2px; background:rgba(0,0,0,0.7); color:#fff; border:none; width:18px; height:18px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; cursor:pointer; line-height: 1;" title="Eliminar imagen">&times;</button>
+    savedImages.forEach((url, imgIdx) => {
+      imgThumbnails += `
+        <div class="var-img-thumbnail">
+          <img src="${url}" alt="">
+          <button type="button" class="var-img-remove-btn" onclick="handleRemoveVariantImage('${key}', ${imgIdx}, false)" title="Quitar foto">&times;</button>
         </div>
-      `).join('');
-    } else {
-      imgThumbnails = `<div style="font-size:11px; color:var(--text-mut); font-style: italic;">Sin imágenes</div>`;
-    }
+      `;
+    });
+    pendingFiles.forEach((file, fIdx) => {
+      const localUrl = URL.createObjectURL(file);
+      imgThumbnails += `
+        <div class="var-img-thumbnail var-img-thumbnail--pending" title="${esc(file.name)}">
+          <img src="${localUrl}" alt="">
+          <button type="button" class="var-img-remove-btn" onclick="handleRemoveVariantImage('${key}', ${fIdx}, true)" title="Quitar foto">&times;</button>
+        </div>
+      `;
+    });
 
     return `
-      <div class="variant-card" data-variant-id="${v.id}" data-index="${i}" data-image-urls="${esc(v.imagen || '')}" style="border:1px solid var(--border); border-radius:12px; background:var(--bg-elev); margin-bottom:1.25rem; padding:1.25rem; display:flex; flex-direction:column; gap:1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.04);">
+      <div class="variant-card" data-variant-id="${v.id || ''}" data-variant-key="${key}" data-index="${i}" data-variant-name="${esc(v.nombre || '')}" data-image-urls="${esc(v.imagen || '')}" data-attributes='${esc(JSON.stringify(v.atributos || []))}'>
         
         <!-- Header -->
-        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:0.75rem;">
-          <div style="display:flex; flex-wrap:wrap; gap:0.25rem; align-items:center;">
-            ${attrChips || '<span class="variant-chip" style="background:#4b5563; font-size: 11px; padding: 2px 8px; border-radius: 12px; font-weight: 600; color: #fff;">General</span>'}
+        <div class="variant-card__header">
+          <div class="variant-card__chips">
+            ${attrChips || '<span class="variant-chip variant-chip--default">General</span>'}
           </div>
-          <button type="button" class="btn btn-sm btn-link" style="color:var(--danger); padding:0; display:flex; align-items:center; gap:4px; font-size:12px; text-decoration:none;" onclick="handleDeleteVariant(${v.id})" title="Eliminar variante">
-            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-            Eliminar
-          </button>
+          <div class="variant-card__actions">
+            <label class="toggle-switch" title="Activa / Inactiva">
+              <input type="checkbox" class="var-activo" ${active ? 'checked' : ''}>
+              <span class="toggle-slider"></span>
+            </label>
+            <span class="variant-card__status-text">${active ? 'Activa' : 'Inactiva'}</span>
+            <button type="button" class="btn-var-delete" onclick="handleDeleteVariant('${key}')" title="Eliminar variante">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </button>
+          </div>
         </div>
 
         <!-- Body -->
-        <div style="display:flex; flex-wrap:wrap; gap:1.5rem;">
-          
-          <!-- Image Section (Left) -->
-          <div style="flex:1; min-width:220px; display:flex; flex-direction:column; gap:0.75rem; border-right:1px solid var(--border); padding-right:1.25rem;">
-            <label class="form-label" style="font-size:11px; font-weight:700; color:var(--text-sec); letter-spacing:0.05em;">IMÁGENES DE VARIANTE</label>
-            <div style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center;">
+        <div class="variant-card__body">
+          <!-- Multi-Images per Variant -->
+          <div class="variant-card__imgs">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <label class="form-label form-label--xs" style="margin:0;">Fotos (${totalImgs})</label>
+            </div>
+            <div class="variant-card__img-list">
               ${imgThumbnails}
-              <button type="button" onclick="$('#var-file-input-${v.id}').click()" style="width:60px; height:60px; border-radius:8px; border:2px dashed var(--border); background:var(--bg-surf); display:flex; align-items:center; justify-content:center; color:var(--text-mut); cursor:pointer; transition: all 0.2s;" onmouseover="this.style.borderColor='var(--accent)';" onmouseout="this.style.borderColor='var(--border)';" title="Subir imagen">
-                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <button type="button" class="var-img-add-btn" onclick="$('#var-file-input-${key}').click()" title="Subir varias fotos a esta variante">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                <span>+ Foto</span>
               </button>
-              <input type="file" id="var-file-input-${v.id}" accept="image/*" multiple style="display:none;" onchange="handleUploadVariantImages(this, ${v.id})">
+              <input type="file" id="var-file-input-${key}" accept="image/*" multiple style="display:none;" onchange="handleUploadVariantImages(this, '${key}')">
             </div>
           </div>
 
-          <!-- Fields Section (Right) -->
-          <div style="flex:2; min-width:320px; display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
-            
+          <!-- Fields -->
+          <div class="variant-card__fields">
             <div class="form-group" style="margin:0;">
-              <label class="form-label" style="font-size:11px; margin-bottom:4px; font-weight:600;">SKU *</label>
-              <input type="text" class="form-input form-input--sm var-sku" value="${v.sku || ''}" placeholder="SKU de variante" required>
+              <label class="form-label form-label--xs">SKU *</label>
+              <input type="text" class="form-input form-input--sm var-sku" value="${esc(v.sku || '')}" placeholder="SKU" required data-validate="required">
             </div>
-
             <div class="form-group" style="margin:0;">
-              <label class="form-label" style="font-size:11px; margin-bottom:4px; font-weight:600;">Código de barras</label>
-              <input type="text" class="form-input form-input--sm var-barcode" value="${v.barcode || ''}" placeholder="EAN / UPC / SKU">
+              <label class="form-label form-label--xs">Código barras</label>
+              <input type="text" class="form-input form-input--sm var-barcode" value="${esc(v.barcode || '')}" placeholder="EAN / UPC">
             </div>
-
             <div class="form-group" style="margin:0;">
-              <label class="form-label" style="font-size:11px; margin-bottom:4px; font-weight:600;">Precio de venta</label>
-              <input type="number" class="form-input form-input--sm var-precio" value="${v.precio_override || v.precio || basePrice || ''}" min="0" step="1">
+              <label class="form-label form-label--xs">Precio individual ($) *</label>
+              <input type="number" class="form-input form-input--sm var-precio" value="${v.precio_override || v.precio || basePrice || ''}" min="0" step="1" placeholder="0" required data-validate="required|number">
             </div>
-
             <div class="form-group" style="margin:0;">
-              <label class="form-label" style="font-size:11px; margin-bottom:4px; font-weight:600;">Stock disponible</label>
-              <input type="number" class="form-input form-input--sm var-stock" value="${stock}" min="0" step="1">
+              <label class="form-label form-label--xs">Stock *</label>
+              <input type="number" class="form-input form-input--sm var-stock" value="${stock}" min="0" step="1" placeholder="0" oninput="updateTotalStockFromVariants()" required data-validate="required|number">
             </div>
-
-            <div style="grid-column: 1 / -1; display:flex; justify-content:space-between; align-items:center; margin-top:0.25rem;">
-              <div style="display:flex; align-items:center; gap:0.5rem;">
-                <label class="toggle-switch">
-                  <input type="checkbox" class="var-activo" ${active ? 'checked' : ''}>
-                  <span class="toggle-slider"></span>
-                </label>
-                <span style="font-size:12px; font-weight:600; color:var(--text-sec);">Variante activa</span>
-              </div>
-            </div>
-
           </div>
-
         </div>
 
       </div>
@@ -985,11 +1304,11 @@ function renderVariantsTable(variants, basePrice) {
   }).join('');
 
   wrapper.innerHTML = `
-    <div style="margin-top:1rem;">
-      <h4 style="margin-bottom:0.75rem; color:var(--text); display:flex; justify-content:space-between; align-items:center;">
-        <span>Lista de Variantes</span>
-        <span style="font-size:12px; color:var(--text-sec); background:var(--bg-surf); padding:4px 10px; border-radius:16px; border:1px solid var(--border);">Stock Total: <b>${totalStock}</b></span>
-      </h4>
+    <div style="margin-top:0.75rem;">
+      <div style="margin-bottom:0.5rem; display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-size:12px; font-weight:700; color:var(--text);">Variantes configuradas (${variants.length})</span>
+        <span style="font-size:11px; color:var(--text-sec); background:var(--bg-surf); padding:3px 10px; border-radius:12px; border:1px solid var(--border);">Stock Total Sumado: <strong id="var-total-stock-badge" style="color:var(--accent)">${totalStock}</strong></span>
+      </div>
       <div id="variants-list-container">
         ${cardsHTML}
       </div>
@@ -997,6 +1316,38 @@ function renderVariantsTable(variants, basePrice) {
   `;
 
   $('#prod-stock').value = totalStock;
+}
+
+function updateTotalStockFromVariants() {
+  const inputs = $$('#variants-list-container .var-stock');
+  let total = 0;
+  inputs.forEach(inp => { total += Number(inp.value) || 0; });
+  const stockField = $('#prod-stock');
+  if (stockField) stockField.value = total;
+  const badge = $('#var-total-stock-badge');
+  if (badge) badge.textContent = total;
+}
+
+function syncVariantsFromDOM() {
+  const cards = $$('#variants-list-container .variant-card');
+  if (!cards.length) return;
+  state.existingVariants = cards.map(card => {
+    let atributos = [];
+    try { atributos = JSON.parse(card.dataset.attributes || '[]'); } catch(e) {}
+    const idVal = card.dataset.variantId;
+    return {
+      id: idVal && idVal !== '' && idVal !== 'null' ? Number(idVal) : null,
+      temp_key: card.dataset.variantKey || '',
+      sku: $('.var-sku', card)?.value.trim() || '',
+      barcode: $('.var-barcode', card)?.value.trim() || '',
+      nombre: card.dataset.variantName || '',
+      precio_override: Number($('.var-precio', card)?.value) || 0,
+      stock: Number($('.var-stock', card)?.value) || 0,
+      imagen: card.dataset.imageUrls || '',
+      activa: $('.var-activo', card)?.checked ?? true,
+      atributos: atributos
+    };
+  });
 }
 
 /** Generate a pastel background color deterministically from a string */
@@ -1007,29 +1358,55 @@ function chipColor(str) {
   return `hsl(${h}, 55%, 25%)`;
 }
 
-async function handleUploadVariantImages(fileInput, variantId) {
+async function handleUploadVariantImages(fileInput, variantKey) {
   if (!fileInput.files.length) return;
-  
-  const formData = new FormData();
-  for (const file of fileInput.files) {
-    formData.append('images', file);
-  }
+  const isSaved = state.editingProduct && !variantKey.startsWith('tmp_');
 
-  fileInput.disabled = true;
-  
-  try {
-    await apiUpload(`/products/${state.editingProduct.id}/variants/${variantId}/images`, formData);
-    Toast.success('Éxito', 'Imágenes subidas para la variante');
-    loadVariants(state.editingProduct.id);
-  } catch (err) {
-    Toast.error('Error', err.message);
-  } finally {
-    fileInput.disabled = false;
+  if (isSaved) {
+    const formData = new FormData();
+    for (const file of fileInput.files) {
+      formData.append('images', file);
+    }
+    fileInput.disabled = true;
+
+    try {
+      await apiUpload(`/products/${state.editingProduct.id}/variants/${variantKey}/images`, formData);
+      Toast.success('Éxito', 'Imágenes subidas para la variante');
+      loadVariants(state.editingProduct.id);
+    } catch (err) {
+      Toast.error('Error', err.message);
+    } finally {
+      fileInput.disabled = false;
+      fileInput.value = '';
+    }
+  } else {
+    // Store in memory (multiple files allowed)
+    if (!state.variantPendingFiles[variantKey]) state.variantPendingFiles[variantKey] = [];
+    for (const file of fileInput.files) {
+      if (file.size > 5 * 1024 * 1024) {
+        Toast.error('Archivo grande', `"${file.name}" supera el límite de 5 MB`);
+        continue;
+      }
+      state.variantPendingFiles[variantKey].push(file);
+    }
     fileInput.value = '';
+    syncVariantsFromDOM();
+    renderVariantsTable(state.existingVariants, Number($('#prod-precio')?.value) || 0);
   }
 }
 
-async function handleRemoveVariantImage(variantId, imageIndex) {
+async function handleRemoveVariantImage(variantKey, imageIndex, isPending) {
+  if (isPending) {
+    if (state.variantPendingFiles[variantKey]) {
+      state.variantPendingFiles[variantKey].splice(imageIndex, 1);
+    }
+    syncVariantsFromDOM();
+    renderVariantsTable(state.existingVariants, Number($('#prod-precio')?.value) || 0);
+    return;
+  }
+
+  if (!state.editingProduct) return;
+  const variantId = Number(variantKey);
   const variant = state.existingVariants.find(v => v.id === variantId);
   if (!variant) return;
 
@@ -1055,54 +1432,32 @@ async function handleRemoveVariantImage(variantId, imageIndex) {
   }
 }
 
-async function handleBulkSave() {
-  if (!state.editingProduct) return;
-  const cards = $$('#variants-list-container .variant-card');
-  if (!cards.length) return;
+async function handleDeleteVariant(variantKey) {
+  const isSaved = state.editingProduct && !variantKey.startsWith('tmp_');
 
-  const variantes = cards.map(card => ({
-    id: Number(card.dataset.variantId),
-    sku: $('.var-sku', card).value.trim(),
-    barcode: $('.var-barcode', card).value.trim(),
-    precio_override: Number($('.var-precio', card).value) || 0,
-    stock: Number($('.var-stock', card).value) || 0,
-    imagen: card.dataset.imageUrls || '',
-    activa: $('.var-activo', card).checked,
-  }));
-
-  const btn = $('#btn-bulk-save');
-  btn.disabled = true;
-  btn.textContent = 'Guardando…';
-
-  try {
-    await api(`/products/${state.editingProduct.id}/variants/bulk`, {
-      method: 'PUT',
-      json: { variants: variantes },
+  if (isSaved) {
+    const confirmed = await window.confirmDelete({
+      title: 'Eliminar variante',
+      message: '¿Eliminar esta variante permanentemente?',
     });
-    Toast.success('Variantes', 'Variantes actualizadas correctamente');
-    loadVariants(state.editingProduct.id);
-  } catch (err) {
-    Toast.error('Error', err.message);
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right:.25rem"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg> Guardar variantes`;
-  }
-}
+    if (!confirmed) return;
 
-async function handleDeleteVariant(variantId) {
-  if (!state.editingProduct) return;
-  const confirmed = await window.confirmDelete({
-    title: 'Eliminar variante',
-    message: '¿Eliminar esta variante?',
-  });
-  if (!confirmed) return;
-
-  try {
-    await api(`/products/${state.editingProduct.id}/variants/${variantId}`, { method: 'DELETE' });
-    Toast.success('Variante', 'Variante eliminada');
-    loadVariants(state.editingProduct.id);
-  } catch (err) {
-    Toast.error('Error', err.message);
+    try {
+      await api(`/products/${state.editingProduct.id}/variants/${variantKey}`, { method: 'DELETE' });
+      Toast.success('Variante', 'Variante eliminada');
+      loadVariants(state.editingProduct.id);
+    } catch (err) {
+      Toast.error('Error', err.message);
+    }
+  } else {
+    // Remove in memory
+    syncVariantsFromDOM();
+    state.existingVariants = state.existingVariants.filter((v, idx) => {
+      const key = v.id ? String(v.id) : (v.temp_key || ('tmp_' + idx));
+      return key !== variantKey;
+    });
+    delete state.variantPendingFiles[variantKey];
+    renderVariantsTable(state.existingVariants, Number($('#prod-precio')?.value) || 0);
   }
 }
 
@@ -1117,7 +1472,7 @@ function injectStyles() {
   style.textContent = `
     /* ---- Product thumbnail ---- */
     .prod-thumb {
-      width: 44px; height: 44px; border-radius: 8px; object-fit: cover;
+      width: 40px; height: 40px; border-radius: 6px; object-fit: cover;
       border: 1px solid var(--border); flex-shrink: 0;
     }
     .prod-thumb--placeholder {
@@ -1125,173 +1480,670 @@ function injectStyles() {
       background: var(--bg-surf); color: var(--text-mut);
     }
 
-    /* ---- Modal sizing ---- */
-    .modal--product { max-width: 850px; width: 95vw; }
-
-    /* ---- Section Cards ---- */
-    .modal-section-card {
-      background: var(--bg-elev);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 1.5rem;
-      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+    /* ---- Modal sizing & layout ---- */
+    .modal--product {
+      max-width: 960px;
+      width: 95vw;
+      max-height: 92vh;
+      display: flex;
+      flex-direction: column;
     }
-    .modal-section-title {
-      font-size: 1.1rem;
+    .modal--product .modal-header {
+      padding: 12px 18px;
+      flex-shrink: 0;
+    }
+    .modal--product .modal-footer {
+      padding: 12px 18px;
+      flex-shrink: 0;
+    }
+    .modal--product .modal-body {
+      padding: 14px 18px;
+      max-height: calc(92vh - 115px);
+      overflow-y: auto;
+    }
+
+    /* ---- Form Layout ---- */
+    .prod-modal-form {
+      display: flex;
+      flex-direction: column;
+      gap: 1.1rem;
+    }
+
+    .prod-form-section {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .prod-form-section:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    .prod-section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+    .prod-section-title {
+      font-size: 0.88rem;
       font-weight: 700;
       color: var(--text);
-      margin-top: 0;
-      margin-bottom: 1.25rem;
-      padding-left: 0.75rem;
-      border-left: 3px solid var(--accent);
-      line-height: 1.2;
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      letter-spacing: -0.01em;
     }
-    .variant-card {
-      transition: all 0.2s ease;
-    }
-    .variant-card:hover {
-      border-color: var(--accent) !important;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
-    }
-    .var-img-thumbnail img {
-      transition: transform 0.2s ease;
-    }
-    .var-img-thumbnail:hover img {
-      transform: scale(1.1);
-    }
-    .var-img-remove-btn:hover {
-      background: var(--danger) !important;
+    .prod-section-title svg {
+      color: var(--accent);
+      flex-shrink: 0;
     }
 
-    /* ---- Form helpers ---- */
-    .form-input--sm { padding: .35rem .5rem; font-size: .8rem; }
+    /* ---- Grids ---- */
+    .prod-grid {
+      display: grid;
+      gap: 0.65rem;
+    }
+    .prod-grid .form-group {
+      margin-bottom: 0;
+    }
 
-    /* ---- Image upload zone ---- */
+    .prod-grid--header {
+      grid-template-columns: 130px 1.5fr 1.1fr 110px;
+    }
+
+    .prod-grid--pricing {
+      grid-template-columns: repeat(5, 1fr);
+    }
+
+    .prod-textarea {
+      min-height: 52px;
+      resize: vertical;
+    }
+
+    /* ---- Image Layout ---- */
+    .prod-img-layout {
+      display: grid;
+      grid-template-columns: 210px 1fr;
+      gap: 0.85rem;
+      align-items: start;
+    }
     .img-upload-zone {
-      border: 2px dashed var(--border); border-radius: 12px; padding: 2rem;
-      text-align: center; cursor: pointer; transition: all .25s;
+      border: 1.5px dashed var(--border);
+      border-radius: 8px;
+      padding: 0.75rem 0.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all .2s;
+      background: var(--bg-surf);
+      min-height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
     .img-upload-zone:hover,
     .img-upload-zone.dragover {
-      border-color: var(--accent); background: var(--accent-dim);
+      border-color: var(--accent);
+      background: var(--accent-dim);
+    }
+    .img-upload-zone__text {
+      margin: 0.25rem 0 0;
+      color: var(--text-sec);
+      font-size: 11.5px;
+      line-height: 1.3;
+    }
+    .img-upload-link {
+      color: var(--accent);
+      font-weight: 600;
+      text-decoration: underline;
+    }
+    .img-upload-zone__hint {
+      font-size: 0.65rem;
+      color: var(--text-mut);
+      display: block;
+      margin-top: 2px;
     }
 
-    /* ---- Image preview grid ---- */
-    .img-preview-grid {
-      display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: .75rem;
+    .prod-img-content {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
     }
-    .img-preview-item {
-      position: relative; border-radius: 8px; overflow: hidden;
-      aspect-ratio: 1; border: 1px solid var(--border);
+    .img-preview-grid,
+    .img-existing-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+      gap: 0.5rem;
     }
-    .img-preview-item img {
-      width: 100%; height: 100%; object-fit: cover;
+
+    .img-preview-item,
+    .img-existing-item {
+      position: relative;
+      border-radius: 6px;
+      overflow: hidden;
+      aspect-ratio: 1;
+      border: 1px solid var(--border);
+      background: var(--bg-surf);
+    }
+    .img-existing-item--principal {
+      border-color: var(--warning);
+      box-shadow: 0 0 0 1px var(--warning);
+    }
+    .img-preview-item img,
+    .img-existing-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
     }
     .img-preview-remove {
-      position: absolute; top: 4px; right: 4px; width: 22px; height: 22px;
-      border-radius: 50%; background: rgba(0,0,0,.7); color: #fff; border: none;
-      cursor: pointer; font-size: 14px; line-height: 1; display: flex;
-      align-items: center; justify-content: center;
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: rgba(0,0,0,.75);
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      font-size: 12px;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
     .img-preview-name {
-      position: absolute; bottom: 0; left: 0; right: 0; padding: 2px 4px;
-      font-size: .65rem; color: #fff; background: rgba(0,0,0,.6);
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    }
-
-    /* ---- Existing images grid ---- */
-    .img-existing-grid {
-      display: grid; grid-template-columns: repeat(3, 1fr); gap: .75rem;
-    }
-    @media (max-width: 600px) {
-      .img-existing-grid { grid-template-columns: repeat(2, 1fr); }
-    }
-    .img-existing-item {
-      position: relative; border-radius: 10px; overflow: hidden;
-      aspect-ratio: 1; border: 2px solid var(--border); transition: border-color .2s;
-    }
-    .img-existing-item--principal { border-color: var(--warning); }
-    .img-existing-item img {
-      width: 100%; height: 100%; object-fit: cover;
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 1px 3px;
+      font-size: 0.6rem;
+      color: #fff;
+      background: rgba(0,0,0,.65);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .img-star-badge {
-      position: absolute; top: 6px; left: 6px; font-size: .9rem;
-      filter: drop-shadow(0 1px 2px rgba(0,0,0,.5));
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      font-size: 0.75rem;
+      filter: drop-shadow(0 1px 2px rgba(0,0,0,.7));
     }
     .img-hover-overlay {
-      position: absolute; inset: 0; display: flex; align-items: center;
-      justify-content: center; gap: .5rem; background: rgba(0,0,0,.55);
-      opacity: 0; transition: opacity .2s;
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
+      background: rgba(0,0,0,.6);
+      opacity: 0;
+      transition: opacity .15s;
     }
     .img-existing-item:hover .img-hover-overlay { opacity: 1; }
-    /* Touch: keep overlay visible on mobile */
     @media (hover: none) {
       .img-hover-overlay { opacity: 1; background: rgba(0,0,0,.35); }
     }
     .img-action-btn {
-      width: 36px; height: 36px; border-radius: 50%; border: none;
-      background: rgba(255,255,255,.2); color: #fff; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      backdrop-filter: blur(4px); transition: background .2s;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(255,255,255,.2);
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(4px);
+      transition: background .15s;
     }
-    .img-action-btn:hover { background: rgba(255,255,255,.35); }
-    .img-action-btn--danger:hover { background: rgba(220,38,38,.7); }
+    .img-action-btn:hover { background: rgba(255,255,255,.4); }
+    .img-action-btn--danger:hover { background: rgba(220,38,38,.8); }
 
-    /* ---- Attribute chips ---- */
-    .attr-group { margin-bottom: .75rem; }
-    .attr-chips { display: flex; flex-wrap: wrap; gap: .4rem; }
-    .attr-chip {
-      padding: .3rem .7rem; border-radius: 20px; font-size: .8rem;
-      border: 1px solid var(--border); background: var(--bg-surf);
-      color: var(--text-sec); cursor: pointer; transition: all .2s;
+    /* ---- Variant & Attribute Section ---- */
+    .variant-attrs-box {
+      background: var(--bg-surf);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.75rem 0.95rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
     }
-    .attr-chip:hover { border-color: var(--accent); color: var(--text); }
-    .attr-chip--selected {
-      background: var(--accent); border-color: var(--accent);
-      color: #fff; font-weight: 600;
+    .attr-builder-top {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .attr-builder-label {
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text-sec);
+    }
+    .attr-presets-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+    }
+    .btn-attr-preset {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 3px 9px;
+      font-size: 11.5px;
+      font-weight: 500;
+      border-radius: 14px;
+      border: 1px dashed var(--border);
+      background: var(--bg-elev);
+      color: var(--text-sec);
+      cursor: pointer;
+      transition: all .15s ease;
+    }
+    .btn-attr-preset:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--accent-dim);
+    }
+    .btn-attr-preset--active {
+      border-style: solid;
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--accent-dim);
+      font-weight: 600;
     }
 
-    /* ---- Variants table ---- */
-    .variants-table {
-      width: 100%; border-collapse: separate; border-spacing: 0;
-      font-size: .85rem;
+    .attr-empty-prompt {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.6rem 0.8rem;
+      background: var(--bg-elev);
+      border: 1px dashed var(--border);
+      border-radius: 6px;
+      font-size: 12px;
+      color: var(--text-sec);
     }
-    .variants-table th {
-      text-align: left; padding: .5rem .6rem; color: var(--text-mut);
-      font-weight: 600; font-size: .75rem; text-transform: uppercase;
-      letter-spacing: .04em; border-bottom: 1px solid var(--border);
+
+    .attr-rows-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
     }
-    .variants-table td {
-      padding: .45rem .6rem; border-bottom: 1px solid var(--border);
-      vertical-align: middle;
+    .attr-row-card {
+      background: var(--bg-elev);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.55rem 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
     }
-    .variants-table tfoot td {
-      border-bottom: none; padding-top: .65rem;
+    .attr-row-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .attr-row-title {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 12px;
+      color: var(--text);
+    }
+    .attr-icon-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent);
+      display: inline-block;
+    }
+    .attr-row-badge {
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 10px;
+      background: var(--bg-surf);
+      color: var(--text-mut);
+      border: 1px solid var(--border);
+    }
+    .btn-attr-row-del {
+      background: none;
+      border: none;
+      color: var(--danger);
+      cursor: pointer;
+      padding: 2px;
+      border-radius: 4px;
+      opacity: 0.75;
+      transition: opacity .15s;
+    }
+    .btn-attr-row-del:hover { opacity: 1; }
+
+    .attr-row-body {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+    .attr-val-tags-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.3rem;
+      align-items: center;
+      min-height: 24px;
+    }
+    .attr-val-empty-hint {
+      font-size: 11px;
+      color: var(--text-mut);
+      font-style: italic;
+    }
+    .attr-val-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 2px 7px;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .attr-val-tag-del {
+      background: none;
+      border: none;
+      color: #fff;
+      cursor: pointer;
+      font-size: 13px;
+      line-height: 1;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      opacity: 0.8;
+    }
+    .attr-val-tag-del:hover { opacity: 1; }
+
+    .attr-input-group {
+      display: flex;
+      gap: 0.35rem;
+    }
+    .attr-custom-input {
+      max-width: 320px;
+      flex: 1;
+    }
+
+    .attr-suggestions-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+    }
+    .attr-suggestions-label {
+      font-size: 10.5px;
+      color: var(--text-mut);
+      font-weight: 500;
+    }
+    .attr-suggestions-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.25rem;
+    }
+    .attr-suggestion-chip {
+      padding: 1px 6px;
+      border-radius: 10px;
+      font-size: 10.5px;
+      background: var(--bg-surf);
+      border: 1px solid var(--border);
+      color: var(--text-sec);
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .attr-suggestion-chip:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--accent-dim);
+    }
+
+    /* ---- Variant Generation Banner ---- */
+    .variant-gen-banner {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 0.75rem;
+      border-radius: 6px;
+      font-size: 11.5px;
+      line-height: 1.4;
+    }
+    .variant-gen-banner--ready {
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #10b981;
+    }
+    .variant-gen-banner--empty {
+      background: var(--bg-elev);
+      border: 1px solid var(--border);
+      color: var(--text-sec);
+    }
+
+    /* ---- Variant Card ---- */
+    .variant-card {
+      background: var(--bg-surf);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.65rem 0.85rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+      margin-bottom: 0.55rem;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .variant-card:hover {
+      border-color: var(--accent);
+    }
+    .variant-card__header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 0.4rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .variant-card__chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.25rem;
+      align-items: center;
     }
     .variant-chip {
-      display: inline-block; padding: .15rem .55rem; border-radius: 12px;
-      font-size: .75rem; font-weight: 500; color: #e2e8f0; margin-right: .25rem;
+      display: inline-block;
+      padding: 1px 7px;
+      border-radius: 10px;
+      font-size: 10.5px;
+      font-weight: 600;
+      color: #fff;
+    }
+    .variant-chip--default {
+      background: #4b5563;
+    }
+    .variant-card__actions {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .variant-card__status-text {
+      font-size: 11.5px;
+      font-weight: 500;
+      color: var(--text-sec);
+    }
+    .btn-var-delete {
+      background: none;
+      border: none;
+      color: var(--danger);
+      cursor: pointer;
+      padding: 3px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0.8;
+      transition: opacity .15s;
+    }
+    .btn-var-delete:hover { opacity: 1; }
+
+    .variant-card__body {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 0.85rem;
+      align-items: center;
+    }
+    .variant-card__imgs {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+    .variant-card__img-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      align-items: center;
+    }
+    .var-img-thumbnail {
+      position: relative;
+      width: 42px;
+      height: 42px;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: var(--bg-elev);
+      flex-shrink: 0;
+    }
+    .var-img-thumbnail img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .var-img-remove-btn {
+      position: absolute;
+      top: 1px;
+      right: 1px;
+      background: rgba(0,0,0,0.8);
+      color: #fff;
+      border: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      cursor: pointer;
+      line-height: 1;
+    }
+    .var-img-remove-btn:hover {
+      background: var(--danger);
+    }
+    .var-img-add-btn {
+      width: 42px;
+      height: 42px;
+      border-radius: 6px;
+      border: 1.5px dashed var(--border);
+      background: var(--bg-elev);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-mut);
+      cursor: pointer;
+      transition: all .2s;
+      flex-shrink: 0;
+    }
+    .var-img-add-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .variant-card__fields {
+      display: grid;
+      grid-template-columns: 1.2fr 1.2fr 1fr 0.9fr;
+      gap: 0.5rem;
+    }
+    .form-label--xs {
+      font-size: 10.5px;
+      margin-bottom: 2px;
+      font-weight: 600;
+      color: var(--text-sec);
+    }
+    .form-input--sm {
+      height: 32px;
+      padding: 4px 8px;
+      font-size: 12.5px;
     }
 
     /* ---- Toggle switch ---- */
     .toggle-switch {
-      position: relative; display: inline-block; width: 36px; height: 20px;
+      position: relative;
+      display: inline-block;
+      width: 32px;
+      height: 18px;
     }
     .toggle-switch input { opacity: 0; width: 0; height: 0; }
     .toggle-slider {
       position: absolute; cursor: pointer; inset: 0;
-      background: var(--border); border-radius: 20px; transition: .25s;
+      background: var(--border); border-radius: 18px; transition: .2s;
     }
     .toggle-slider::before {
-      content: ''; position: absolute; width: 14px; height: 14px;
+      content: ''; position: absolute; width: 12px; height: 12px;
       left: 3px; bottom: 3px; background: #fff; border-radius: 50%;
-      transition: .25s;
+      transition: .2s;
     }
     .toggle-switch input:checked + .toggle-slider { background: var(--accent); }
-    .toggle-switch input:checked + .toggle-slider::before { transform: translateX(16px); }
+    .toggle-switch input:checked + .toggle-slider::before { transform: translateX(14px); }
 
     /* ---- Spin animation ---- */
     @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+    /* ---- Responsive Breakpoints ---- */
+    @media (max-width: 860px) {
+      .prod-grid--header {
+        grid-template-columns: 1fr 1fr;
+      }
+      .prod-grid--pricing {
+        grid-template-columns: repeat(3, 1fr);
+      }
+      .prod-img-layout {
+        grid-template-columns: 1fr;
+      }
+      .variant-card__body {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+      }
+    }
+
+    @media (max-width: 580px) {
+      .modal--product {
+        width: 98vw;
+        max-height: 95vh;
+        margin: 4px;
+      }
+      .modal--product .modal-header,
+      .modal--product .modal-footer {
+        padding: 10px 14px;
+      }
+      .modal--product .modal-body {
+        padding: 10px 12px;
+        max-height: calc(95vh - 105px);
+      }
+      .prod-grid--header {
+        grid-template-columns: 1fr;
+      }
+      .prod-grid--pricing {
+        grid-template-columns: 1fr 1fr;
+      }
+      .variant-card__fields {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
   `;
   document.head.appendChild(style);
 }

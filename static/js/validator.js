@@ -5,6 +5,7 @@ const FormValidator = {
     // Default messages in Spanish
     messages: {
         required: "Este campo es obligatorio.",
+        number: "Ingresa un número válido.",
         email: "Ingresa un correo electrónico válido.",
         minlength: "Debe tener al menos {minlength} caracteres.",
         maxlength: "No puede tener más de {maxlength} caracteres.",
@@ -76,15 +77,16 @@ const FormValidator = {
             });
 
             input.addEventListener('input', () => {
-                if (input.classList.contains('is-touched')) {
+                // Real-time validation on typing
+                if (input.classList.contains('is-touched') || input.value.trim() !== '') {
+                    input.classList.add('is-touched');
                     this.validateField(input);
                 }
             });
 
             input.addEventListener('change', () => {
-                if (input.classList.contains('is-touched')) {
-                    this.validateField(input);
-                }
+                input.classList.add('is-touched');
+                this.validateField(input);
             });
         });
     },
@@ -102,12 +104,22 @@ const FormValidator = {
         let errorParams = {};
 
         // 1. Required check
-        if (input.hasAttribute('required') && value === '') {
+        const isRequired = input.hasAttribute('required') || (input.dataset.validate && input.dataset.validate.includes('required'));
+        if (isRequired && value === '') {
             isValid = false;
             errorCode = 'required';
         }
 
-        // 2. Email check
+        // 2. Number check
+        if (isValid && (input.type === 'number' || (input.dataset.validate && input.dataset.validate.includes('number'))) && value !== '') {
+            const num = parseFloat(value);
+            if (isNaN(num)) {
+                isValid = false;
+                errorCode = 'number';
+            }
+        }
+
+        // 3. Email check
         if (isValid && input.type === 'email' && value !== '') {
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             if (!emailRegex.test(value)) {
