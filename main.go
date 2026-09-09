@@ -31,6 +31,7 @@ func main() {
 	if err := cfg.Validate(); err != nil {
 		log.Fatalf("❌ Error crítico de configuración: %v", err)
 	}
+	utils.SetJWTSecret(cfg.JWTSecret)
 
 	// Inicializar Casbin
 	if err := customMiddleware.InitCasbin(cfg.CasbinModelPath, cfg.CasbinPolicyPath); err != nil {

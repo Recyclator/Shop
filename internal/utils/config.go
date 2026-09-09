@@ -16,3 +16,8 @@ func GetJWTSecret() string {
 	}
 	return jwtSecret
 }
+
+// SetJWTSecret establece el secret para firma y verificación de JWT
+func SetJWTSecret(secret string) {
+	jwtSecret = secret
+}
