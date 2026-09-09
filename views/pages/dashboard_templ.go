@@ -269,25 +269,31 @@ func DashboardPage(data DashboardData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</tbody></table></div></div><div class=\"card\"><div class=\"card-header\"><div class=\"card-title\">Actividad reciente</div></div><div class=\"card-body\">")
+		if len(data.Orders) == 0 {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<tr><td colspan=\"5\" style=\"text-align:center;padding:24px;color:var(--text-mut)\">No hay pedidos registrados aún</td></tr>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "</tbody></table></div></div><div class=\"card\"><div class=\"card-header\"><div class=\"card-title\">Actividad reciente</div></div><div class=\"card-body\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		for _, act := range data.Activity {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<div style=\"display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)\"><div style=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "<div style=\"display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)\"><div style=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var15 string
 			templ_7745c5c3_Var15, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues("width:8px;height:8px;background:" + act.Color + ";border-radius:50%;margin-top:5px")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 109, Col: 103}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 116, Col: 103}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "\"></div><div><div style=\"font-size:12px\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "\"></div><div><div style=\"font-size:12px\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -295,25 +301,31 @@ func DashboardPage(data DashboardData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "</div><div style=\"font-size:10px;color:var(--text-mut)\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "</div><div style=\"font-size:10px;color:var(--text-mut)\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var16 string
 			templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(act.Time)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 112, Col: 67}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/dashboard.templ`, Line: 119, Col: 67}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "</div></div></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "</div></div></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "</div></div></div><script>\n\t\tconst now = new Date();\n\t\tconst options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };\n\t\tconst dateEl = document.getElementById('current-date');\n\t\tif (dateEl) dateEl.textContent = now.toLocaleDateString('es-CO', options);\n\t</script>")
+		if len(data.Activity) == 0 {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "<div style=\"text-align:center;padding:24px;color:var(--text-mut);font-size:13px\">No hay actividad reciente registrada</div>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "</div></div></div><script>\n\t\tconst now = new Date();\n\t\tconst options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };\n\t\tconst dateEl = document.getElementById('current-date');\n\t\tif (dateEl) dateEl.textContent = now.toLocaleDateString('es-CO', options);\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

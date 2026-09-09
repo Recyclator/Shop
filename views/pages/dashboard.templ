@@ -94,6 +94,13 @@ templ DashboardPage(data DashboardData) {
 								<td>{ order.Date }</td>
 							</tr>
 						}
+						if len(data.Orders) == 0 {
+							<tr>
+								<td colspan="5" style="text-align:center;padding:24px;color:var(--text-mut)">
+									No hay pedidos registrados aún
+								</td>
+							</tr>
+						}
 					</tbody>
 				</table>
 			</div>
@@ -111,6 +118,11 @@ templ DashboardPage(data DashboardData) {
 							<div style="font-size:12px">@templ.Raw(act.Text)</div>
 							<div style="font-size:10px;color:var(--text-mut)">{ act.Time }</div>
 						</div>
+					</div>
+				}
+				if len(data.Activity) == 0 {
+					<div style="text-align:center;padding:24px;color:var(--text-mut);font-size:13px">
+						No hay actividad reciente registrada
 					</div>
 				}
 			</div>
