@@ -27,6 +27,11 @@ func main() {
 	// Cargar configuración
 	cfg := config.Load()
 
+	// Validar configuración y credenciales de seguridad
+	if err := cfg.Validate(); err != nil {
+		log.Fatalf("❌ Error crítico de configuración: %v", err)
+	}
+
 	// Inicializar Casbin
 	if err := customMiddleware.InitCasbin(cfg.CasbinModelPath, cfg.CasbinPolicyPath); err != nil {
 		log.Fatalf("Error inicializando Casbin: %v", err)

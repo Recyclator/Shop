@@ -2,8 +2,10 @@ package config
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -129,6 +131,67 @@ func (c *Config) GetDSN() string {
 		"host=%s user=%s password=%s dbname=%s port=%s sslmode=%s TimeZone=America/Bogota",
 		c.DBHost, c.DBUser, c.DBPassword, c.DBName, c.DBPort, c.DBSSLMode,
 	)
+}
+
+// Validate valida que la configuración sea coherente y cumpla los requisitos de seguridad
+func (c *Config) Validate() error {
+	var errs []string
+
+	if c.ServerPort == "" {
+		errs = append(errs, "SERVER_PORT no puede estar vacío")
+	}
+	if c.DBHost == "" {
+		errs = append(errs, "DB_HOST no puede estar vacío")
+	}
+	if c.DBName == "" {
+		errs = append(errs, "DB_NAME no puede estar vacío")
+	}
+	if c.DBUser == "" {
+		errs = append(errs, "DB_USER no puede estar vacío")
+	}
+
+	isProduction := c.Env == "production" || c.Env == "prod"
+
+	if isProduction {
+		insecureSecrets := map[string]bool{
+			"change-this-secret-in-production": true,
+			"secret":                           true,
+			"123456":                           true,
+			"password":                         true,
+			"":                                 true,
+		}
+
+		if insecureSecrets[c.JWTSecret] {
+			errs = append(errs, "JWT_SECRET inseguro: en producción debe definirse un secreto criptográfico único (no el valor por defecto)")
+		} else if len(c.JWTSecret) < 32 {
+			errs = append(errs, fmt.Sprintf("JWT_SECRET débil: longitud actual %d caracteres, se requiere mínimo 32 caracteres", len(c.JWTSecret)))
+		}
+
+		insecurePasswords := map[string]bool{
+			"password": true,
+			"postgres": true,
+			"admin":    true,
+			"123456":   true,
+			"":         true,
+		}
+		if insecurePasswords[c.DBPassword] {
+			errs = append(errs, "DB_PASSWORD inseguro: en producción no se permite usar contraseñas por defecto o vacías")
+		}
+
+		if c.DBSSLMode == "disable" && c.DBHost != "localhost" && c.DBHost != "127.0.0.1" && c.DBHost != "db" && c.DBHost != "postgres" {
+			errs = append(errs, "DB_SSL_MODE inseguro: conexiones a bases de datos remotas en producción deben usar SSL (require o verify-full)")
+		}
+	} else {
+		if c.JWTSecret == "change-this-secret-in-production" {
+			log.Println("⚠️  ADVERTENCIA DE SEGURIDAD: Usando JWT_SECRET por defecto en desarrollo. Cámbielo antes de desplegar a producción.")
+		}
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("errores de configuración:\n - %s", strings.Join(errs, "\n - "))
+	}
+
+	return nil
 }
 
 func getEnv(key, defaultValue string) string {
