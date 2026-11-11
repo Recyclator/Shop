@@ -10,6 +10,12 @@ templ AuthPage() {
 			<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 			<script src="/static/js/validator.js" defer></script>
 			<style>
+				button { font: inherit; }
+				button.tab { background: transparent; border: 0; }
+				:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+				.validation-error { display: block; color: #fca5a5; font-size: 13px; margin-top: 4px; }
+				@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+
 				* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 				:root {
 					--bg: #0c0d0f; --bg-elev: #131416; --bg-surf: #18191d;
@@ -242,41 +248,41 @@ templ AuthPage() {
 				</div>
 				
 				<div class="card">
-					<div class="alert" id="alert"></div>
+					<div class="alert" id="alert" role="alert"></div>
 					
 					<div class="tabs">
-						<div class="tab active" data-tab="login">Iniciar sesión</div>
-						<div class="tab" data-tab="register">Registrarse</div>
+						<button type="button" class="tab active" data-tab="login">Iniciar sesión</button>
+						<button type="button" class="tab" data-tab="register">Registrarse</button>
 					</div>
 					
 					<form id="login-form">
 						<div class="form-group">
-							<label>Email</label>
-							<input type="email" id="login-email" placeholder="tu@email.com" required>
+							<label for="login-email">Email</label>
+							<input type="email" id="login-email" autocomplete="username" placeholder="tu@email.com" required>
 						</div>
 						<div class="form-group">
-							<label>Contraseña</label>
-							<input type="password" id="login-password" placeholder="••••••••" required>
+							<label for="login-password">Contraseña</label>
+							<input type="password" id="login-password" autocomplete="current-password" placeholder="••••••••" required>
 						</div>
 						<button type="submit" class="btn" id="login-btn">Iniciar sesión</button>
 					</form>
 					
 					<form id="register-form" class="hidden">
 						<div class="form-group">
-							<label>Nombre</label>
-							<input type="text" id="reg-nombre" placeholder="Tu nombre" required>
+							<label for="reg-nombre">Nombre</label>
+							<input type="text" id="reg-nombre" autocomplete="name" placeholder="Tu nombre" required>
 						</div>
 						<div class="form-group">
-							<label>Email</label>
-							<input type="email" id="reg-email" placeholder="tu@email.com" required>
+							<label for="reg-email">Email</label>
+							<input type="email" id="reg-email" autocomplete="email" placeholder="tu@email.com" required>
 						</div>
 						<div class="form-group">
-							<label>Contraseña</label>
-							<input type="password" id="reg-password" placeholder="Mínimo 6 caracteres" required minlength="6">
+							<label for="reg-password">Contraseña</label>
+							<input type="password" id="reg-password" autocomplete="new-password" placeholder="Mínimo 6 caracteres" required minlength="6">
 						</div>
 						<div class="form-group">
-							<label>Confirmar contraseña</label>
-							<input type="password" id="reg-confirm" placeholder="••••••••" required data-match="reg-password">
+							<label for="reg-confirm">Confirmar contraseña</label>
+							<input type="password" id="reg-confirm" autocomplete="new-password" placeholder="••••••••" required data-match="reg-password">
 						</div>
 						<button type="submit" class="btn" id="reg-btn">Crear cuenta</button>
 					</form>
@@ -326,7 +332,9 @@ templ AuthPage() {
 				function showAlert(type, title, message) {
 					const alert = document.getElementById('alert');
 					alert.className = 'alert show ' + type;
-					alert.innerHTML = '<strong>' + title + '</strong><br>' + message;
+					const heading = document.createElement('strong');
+					heading.textContent = title;
+					alert.replaceChildren(heading, document.createElement('br'), document.createTextNode(message));
 				}
 				
 				function hideAlert() {

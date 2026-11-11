@@ -6,7 +6,7 @@ templ Topbar(pageTitle string) {
 		<div class="topbar-spacer"></div>
 
 		<div class="search">
-			<input type="text" placeholder="Buscar..." id="search-input">
+			<input type="text" placeholder="Buscar..." aria-label="Buscar" id="global-search-input">
 		</div>
 
 		<div class="spacer"></div>
@@ -24,13 +24,13 @@ templ Topbar(pageTitle string) {
 
 			<!-- User menu — pure vanilla JS, no Alpine dependency -->
 			<div class="user" id="user-menu-wrapper">
-				<div class="user-info" id="user-menu-trigger">
-					<div class="avatar" id="user-avatar">?</div>
+				<button type="button" class="user-info" id="user-menu-trigger" aria-label="Opciones de usuario" aria-expanded="false" aria-controls="user-dropdown">
+					<span class="avatar" id="user-avatar">?</span>
 					<span class="user-name" id="user-name">Usuario</span>
 					<svg class="user-chevron" id="user-chevron" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width:14px;height:14px;transition:transform 0.2s;">
 						<path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
 					</svg>
-				</div>
+				</button>
 
 				<ul class="user-dropdown" id="user-dropdown" style="display:none;">
 				<li>
@@ -62,10 +62,20 @@ templ Topbar(pageTitle string) {
 				var dropdown = document.getElementById('user-dropdown');
 				var chevron  = document.getElementById('user-chevron');
 
+				document.getElementById('user-menu-wrapper').addEventListener('keydown', function(e) {
+					if (e.key === 'Escape') {
+						dropdown.style.display = 'none';
+						trigger.setAttribute('aria-expanded', 'false');
+						chevron.style.transform = '';
+						trigger.focus();
+					}
+				});
+
 				trigger.addEventListener('click', function(e) {
 					e.stopPropagation();
 					var isOpen = dropdown.style.display === 'block';
 					dropdown.style.display = isOpen ? 'none' : 'block';
+					trigger.setAttribute('aria-expanded', String(!isOpen));
 					chevron.style.transform = isOpen ? '' : 'rotate(180deg)';
 				});
 
@@ -73,6 +83,7 @@ templ Topbar(pageTitle string) {
 					var wrapper = document.getElementById('user-menu-wrapper');
 					if (wrapper && !wrapper.contains(e.target)) {
 						dropdown.style.display = 'none';
+						trigger.setAttribute('aria-expanded', 'false');
 						chevron.style.transform = '';
 					}
 				});

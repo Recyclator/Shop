@@ -25,16 +25,16 @@ templ SettingsPage() {
 				</div>
 				<form id="company-form" onsubmit="event.preventDefault(); saveCompany();">
 					<div class="form-row">
-						<div class="form-group"><label class="form-label">Nombre *</label><input type="text" class="form-input" id="company-name" value="Nexora SAS" required></div>
+						<div class="form-group"><label for="company-name" class="form-label">Nombre *</label><input type="text" class="form-input" id="company-name" value="Nexora SAS" required></div>
 						<div class="form-row">
-							<div class="form-group"><label class="form-label">NIT *</label><input type="text" class="form-input" id="company-nit" value="1234567890" required></div>
-							<div class="form-group"><label class="form-label">DV *</label><input type="text" class="form-input" id="company-dv" value="1" required></div>
+							<div class="form-group"><label for="company-nit" class="form-label">NIT *</label><input type="text" class="form-input" id="company-nit" value="1234567890" required></div>
+							<div class="form-group"><label for="company-dv" class="form-label">DV *</label><input type="text" class="form-input" id="company-dv" value="1" required></div>
 						</div>
 					</div>
-					<div class="form-group"><label class="form-label">Dirección *</label><input type="text" class="form-input" id="company-address" value="Carrera 10 # 20-30" required></div>
+					<div class="form-group"><label for="company-address" class="form-label">Dirección *</label><input type="text" class="form-input" id="company-address" value="Carrera 10 # 20-30" required></div>
 					<div class="form-row">
-						<div class="form-group"><label class="form-label">Ciudad *</label><input type="text" class="form-input" id="company-city" value="Bogotá" required></div>
-						<div class="form-group"><label class="form-label">Teléfono *</label><input type="text" class="form-input" id="company-phone" value="+57 1 234 5678" required></div>
+						<div class="form-group"><label for="company-city" class="form-label">Ciudad *</label><input type="text" class="form-input" id="company-city" value="Bogotá" required></div>
+						<div class="form-group"><label for="company-phone" class="form-label">Teléfono *</label><input type="text" class="form-input" id="company-phone" value="+57 1 234 5678" required></div>
 					</div>
 				</form>
 				<button class="btn btn-primary" onclick="saveCompany()" style="margin-top:16px;">Guardar</button>

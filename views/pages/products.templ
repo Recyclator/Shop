@@ -12,20 +12,20 @@ templ ProductsPage() {
 
 	<!-- Toolbar -->
 	<div class="toolbar">
-		<input type="text" class="form-input" placeholder="Buscar por nombre, SKU..." id="search-input"/>
-		<select id="filter-status" class="form-select">
+		<input type="text" class="form-input" placeholder="Buscar por nombre, SKU..." id="search-input" aria-label="Buscar productos por nombre o SKU"/>
+		<select id="filter-status" aria-label="Estado del producto" class="form-select">
 			<option value="">Todos</option>
 			<option value="activo">Activo</option>
 			<option value="inactivo">Inactivo</option>
 		</select>
-		<select id="filter-category" class="form-select">
+		<select id="filter-category" aria-label="Categoría del producto" class="form-select">
 			<option value="">Todas las categorías</option>
 		</select>
 	</div>
 
 	<!-- Products Table -->
 	<div class="card">
-		<div class="card-body p-0">
+		<div class="card-body p-0 table-scroll" tabindex="0" role="region" aria-label="Tabla de datos">
 			<table>
 				<thead>
 					<tr>

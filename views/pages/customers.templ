@@ -21,12 +21,12 @@ templ CustomersPage(data CustomersData) {
 	</div>
 
 	<div class="toolbar">
-		<input type="text" class="form-input" placeholder="Buscar por nombre, cédula, email..." id="search-filter">
+		<input type="text" class="form-input" placeholder="Buscar por nombre, cédula, email..." id="search-filter" aria-label="Buscar por nombre, cédula, email...">
 		<button class="btn btn-secondary" onclick="loadCustomers()">Buscar</button>
 	</div>
 
 	<div class="card">
-		<div class="card-body p-0">
+		<div class="card-body p-0 table-scroll" tabindex="0" role="region" aria-label="Tabla de datos">
 			<table>
 				<thead>
 					<tr>
@@ -52,25 +52,25 @@ templ CustomersPage(data CustomersData) {
 		<div class="modal">
 			<div class="modal-header">
 				<div class="modal-title" id="modal-title">Nuevo Cliente</div>
-				<button class="modal-close" onclick="closeModal()">&times;</button>
+				<button class="modal-close" aria-label="Cerrar diálogo" type="button" onclick="closeModal()">&times;</button>
 			</div>
 			<div class="modal-body">
 				<form id="customer-form">
 					<input type="hidden" id="customer-id">
 					<div class="form-group">
-						<label class="form-label">Cédula *</label>
+						<label for="cedula" class="form-label">Cédula *</label>
 						<input type="text" class="form-input" id="cedula" required>
 					</div>
 					<div class="form-group">
-						<label class="form-label">Nombre Completo *</label>
+						<label for="nombre" class="form-label">Nombre Completo *</label>
 						<input type="text" class="form-input" id="nombre" required>
 					</div>
 					<div class="form-group">
-						<label class="form-label">Email *</label>
+						<label for="email" class="form-label">Email *</label>
 						<input type="email" class="form-input" id="email" required>
 					</div>
 					<div class="form-group">
-						<label class="form-label">Teléfono *</label>
+						<label for="telefono" class="form-label">Teléfono *</label>
 						<input type="text" class="form-input" id="telefono" required>
 					</div>
 				</form>
