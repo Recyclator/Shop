@@ -303,7 +303,7 @@
         display: none;
     }
 
-    .topbar .user span {
+    .topbar .user .user-name {
         display: none;
     }
 }

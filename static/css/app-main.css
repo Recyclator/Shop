@@ -21,7 +21,7 @@
     --border-strong: rgba(255,255,255,0.12);
     --text: #fafafa;
     --text-sec: #a1a1aa;
-    --text-mut: #52525b;
+    --text-mut: #a1a1aa;
     --accent: #ffffff;
     --accent-dim: rgba(255,255,255,0.08);
     --success: #a5d6a7;
@@ -30,10 +30,14 @@
     --danger: #ef9a9a;
     --radius: 6px;
     --radius-lg: 10px;
+    --control-height: 44px;
+    --space-4: 16px;
+    color-scheme: dark;
 }
 
 /* Light Theme - Higher priority using [data-theme='light'] */
 [data-theme='light'] {
+    color-scheme: light;
     --bg: #ffffff !important;
     --bg-elev: #fafafa !important;
     --bg-surf: #f4f4f5 !important;
@@ -42,12 +46,12 @@
     --border-strong: rgba(0,0,0,0.12) !important;
     --text: #09090b !important;
     --text-sec: #52525b !important;
-    --text-mut: #a1a1aa !important;
+    --text-mut: #62626c !important;
     --accent: #09090b !important;
     --accent-dim: rgba(9,9,11,0.06) !important;
     --success: #2e7d32 !important;
     --success-dim: rgba(46,125,50,0.06) !important;
-    --warning: #b38f00 !important;
+    --warning: #806500 !important;
     --danger: #c62828 !important;
 }
 
@@ -288,7 +292,7 @@ code, .mono {
 .toolbar select,
 .toolbar .form-input,
 .toolbar .form-select {
-    height: 44px !important;
+    height: var(--control-height) !important;
     padding: 10px 16px !important;
     background-color: var(--bg-surf) !important;
     color: var(--text) !important;
@@ -326,7 +330,7 @@ code, .mono {
 .form-input-tw {
     display: block !important;
     width: 100% !important;
-    height: 44px !important;
+    height: var(--control-height) !important;
     padding: 10px 16px !important;
     background-color: var(--bg-surf) !important;
     color: var(--text) !important;
@@ -348,7 +352,7 @@ code, .mono {
 .form-input::placeholder,
 .form-input-tw::placeholder {
     color: var(--text-mut) !important;
-    opacity: 0.7 !important;
+    opacity: 1 !important;
 }
 
 /* ---------- Card ---------- */
@@ -527,25 +531,6 @@ tr:hover { background: var(--bg-hover); }
     margin-bottom: 6px;
 }
 
-.form-input,
-.form-select {
-    width: 100%;
-    height: 40px;
-    background: var(--bg-surf);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 10px 12px;
-    color: var(--text);
-    font-size: 13px;
-    box-sizing: border-box;
-}
-
-.form-input:focus,
-.form-select:focus {
-    outline: none;
-    border-color: var(--accent);
-}
-
 .form-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -648,7 +633,7 @@ tr:hover { background: var(--bg-hover); }
     .sections { grid-template-columns: 1fr; }
 
     .topbar .search { display: none; }
-    .topbar .user span { display: none; }
+    .topbar .user .user-name { display: none; }
 }
 
 @media (max-width: 480px) {
@@ -1000,3 +985,27 @@ tr:hover { background: var(--bg-hover); }
     color: var(--text-mut);
     margin-left: -6px;
 }
+
+/* Shared interaction and responsive rules retain the existing palette. */
+button, input, select, textarea { font-family: inherit; }
+:focus-visible { outline: 2px solid var(--accent) !important; outline-offset: 3px; }
+.btn:disabled { opacity: .55; cursor: not-allowed; }
+.topbar .user-info { border: 0; background: transparent; color: inherit; font: inherit; }
+.skip-link { position: fixed; top: 8px; left: 8px; z-index: 10001; padding: 12px 16px; background: var(--accent); color: var(--bg); transform: translateY(-160%); }
+.skip-link:focus { transform: none; }
+.table-scroll { overflow-x: auto; }
+.modal-close { min-width: 32px; min-height: 32px; }
+.confirm-dialog::backdrop { background: rgba(0,0,0,.6); backdrop-filter: blur(4px); }
+textarea.form-input { height: auto !important; min-height: 88px; resize: vertical; }
+@media (max-width: 767px) {
+    .page-header, .pagination { flex-wrap: wrap; gap: var(--space-4); }
+    .toolbar input, .toolbar select { min-width: 0; max-width: 100%; }
+    .form-input, .form-select, .form-input-tw { font-size: 16px !important; }
+    .main-wrapper { padding-bottom: calc(6rem + env(safe-area-inset-bottom)); }
+    .bottom-nav { bottom: calc(1rem + env(safe-area-inset-bottom)); }
+}
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}
+
+.confirm-dialog .modal { margin: 0; }

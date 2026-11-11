@@ -29,22 +29,22 @@ templ ProfilePage() {
 			<div class="card-body">
 				<form id="profile-form" @submit.prevent="submitProfile">
 					<div class="form-row">
-						<div class="form-group"><label class="form-label">Nombre</label><input type="text" class="form-input" id="prof-nombre"></div>
-						<div class="form-group"><label class="form-label">Apellido</label><input type="text" class="form-input" id="prof-apellido"></div>
+						<div class="form-group"><label for="prof-nombre" class="form-label">Nombre</label><input type="text" class="form-input" id="prof-nombre"></div>
+						<div class="form-group"><label for="prof-apellido" class="form-label">Apellido</label><input type="text" class="form-input" id="prof-apellido"></div>
 					</div>
-					<div class="form-group"><label class="form-label">Teléfono</label><input type="text" class="form-input" id="prof-telefono"></div>
+					<div class="form-group"><label for="prof-telefono" class="form-label">Teléfono</label><input type="text" class="form-input" id="prof-telefono"></div>
 					<div class="form-row">
-						<div class="form-group"><label class="form-label">Tipo Documento</label><select class="form-select" id="prof-tipo-documento"><option value="CC">CC</option><option value="CE">CE</option><option value="NIT">NIT</option></select></div>
-						<div class="form-group"><label class="form-label">Número Documento</label><input type="text" class="form-input" id="prof-numero-documento"></div>
+						<div class="form-group"><label for="prof-tipo-documento" class="form-label">Tipo Documento</label><select class="form-select" id="prof-tipo-documento"><option value="CC">CC</option><option value="CE">CE</option><option value="NIT">NIT</option></select></div>
+						<div class="form-group"><label for="prof-numero-documento" class="form-label">Número Documento</label><input type="text" class="form-input" id="prof-numero-documento"></div>
 					</div>
-					<div class="form-group"><label class="form-label">Dirección</label><input type="text" class="form-input" id="prof-direccion"></div>
+					<div class="form-group"><label for="prof-direccion" class="form-label">Dirección</label><input type="text" class="form-input" id="prof-direccion"></div>
 					<div class="form-row">
-						<div class="form-group"><label class="form-label">Ciudad</label><input type="text" class="form-input" id="prof-ciudad"></div>
-						<div class="form-group"><label class="form-label">Departamento</label><input type="text" class="form-input" id="prof-departamento"></div>
+						<div class="form-group"><label for="prof-ciudad" class="form-label">Ciudad</label><input type="text" class="form-input" id="prof-ciudad"></div>
+						<div class="form-group"><label for="prof-departamento" class="form-label">Departamento</label><input type="text" class="form-input" id="prof-departamento"></div>
 					</div>
 					<div class="form-row">
-						<div class="form-group"><label class="form-label">País</label><select class="form-select" id="prof-pais"><option value="CO">Colombia</option><option value="VE">Venezuela</option><option value="EC">Ecuador</option></select></div>
-						<div class="form-group"><label class="form-label">Código Postal</label><input type="text" class="form-input" id="prof-codigo-postal"></div>
+						<div class="form-group"><label for="prof-pais" class="form-label">País</label><select class="form-select" id="prof-pais"><option value="CO">Colombia</option><option value="VE">Venezuela</option><option value="EC">Ecuador</option></select></div>
+						<div class="form-group"><label for="prof-codigo-postal" class="form-label">Código Postal</label><input type="text" class="form-input" id="prof-codigo-postal"></div>
 					</div>
 					<button type="submit" class="btn btn-primary" id="profile-save-btn">Guardar Cambios</button>
 					<div id="profile-msg" style="margin-top:12px;font-size:12px;"></div>
@@ -56,9 +56,9 @@ templ ProfilePage() {
 		<div x-show="tab === 'security'" class="card">
 			<div class="card-body">
 				<form id="password-form" @submit.prevent="submitPassword">
-					<div class="form-group"><label class="form-label">Contraseña Actual *</label><input type="password" class="form-input" id="pwd-current" required></div>
-					<div class="form-group"><label class="form-label">Nueva Contraseña *</label><input type="password" class="form-input" id="pwd-new" required></div>
-					<div class="form-group"><label class="form-label">Confirmar Contraseña *</label><input type="password" class="form-input" id="pwd-confirm" required></div>
+					<div class="form-group"><label for="pwd-current" class="form-label">Contraseña Actual *</label><input type="password" class="form-input" id="pwd-current" required></div>
+					<div class="form-group"><label for="pwd-new" class="form-label">Nueva Contraseña *</label><input type="password" class="form-input" id="pwd-new" required></div>
+					<div class="form-group"><label for="pwd-confirm" class="form-label">Confirmar Contraseña *</label><input type="password" class="form-input" id="pwd-confirm" required></div>
 					<button type="submit" class="btn btn-primary">Cambiar Contraseña</button>
 					<div id="password-msg" style="margin-top:12px;font-size:12px;"></div>
 				</form>

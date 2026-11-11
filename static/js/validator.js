@@ -2,6 +2,8 @@
  * FormValidator - A premium real-time form validation utility for Nexora
  */
 const FormValidator = {
+    errors: new WeakMap(),
+    nextErrorId: 0,
     // Default messages in Spanish
     messages: {
         required: "Este campo es obligatorio.",
@@ -57,11 +59,8 @@ const FormValidator = {
             setTimeout(() => {
                 const inputs = form.querySelectorAll('input, select, textarea');
                 inputs.forEach(input => {
+                    this.clearError(input);
                     input.classList.remove('is-touched', 'is-invalid', 'is-valid');
-                    const errorEl = input.parentNode.querySelector('.validation-error');
-                    if (errorEl) {
-                        errorEl.remove();
-                    }
                 });
             }, 0);
         });
@@ -227,12 +226,18 @@ const FormValidator = {
         input.classList.remove('is-valid');
         input.classList.add('is-invalid');
 
-        let errorEl = input.parentNode.querySelector('.validation-error');
+        input.setAttribute('aria-invalid', 'true');
+        let errorEl = this.errors.get(input);
         if (!errorEl) {
             errorEl = document.createElement('span');
             errorEl.className = 'validation-error';
+            errorEl.id = 'validation-error-' + (++this.nextErrorId);
+            this.errors.set(input, errorEl);
             input.parentNode.appendChild(errorEl);
         }
+        const describedBy = new Set((input.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean));
+        describedBy.add(errorEl.id);
+        input.setAttribute('aria-describedby', [...describedBy].join(' '));
         errorEl.textContent = message;
     },
 
@@ -244,9 +249,14 @@ const FormValidator = {
             input.classList.remove('is-valid');
         }
 
-        const errorEl = input.parentNode.querySelector('.validation-error');
+        input.removeAttribute('aria-invalid');
+        const errorEl = this.errors.get(input);
         if (errorEl) {
+            const ids = (input.getAttribute('aria-describedby') || '').split(/\s+/).filter(id => id && id !== errorEl.id);
+            if (ids.length) input.setAttribute('aria-describedby', ids.join(' '));
+            else input.removeAttribute('aria-describedby');
             errorEl.remove();
+            this.errors.delete(input);
         }
     },
 

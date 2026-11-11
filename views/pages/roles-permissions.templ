@@ -15,12 +15,12 @@ templ RolesPermissionsPage() {
 		<div class="card-body"><div id="all-permissions-list"></div></div>
 	</div>
 	<div class="modal-overlay" id="role-modal"><div class="modal">
-		<div class="modal-header"><div class="modal-title" id="role-modal-title">Nuevo Rol</div><button class="modal-close" onclick="closeRoleModal()">&times;</button></div>
+		<div class="modal-header"><div class="modal-title" id="role-modal-title">Nuevo Rol</div><button class="modal-close" aria-label="Cerrar diálogo" type="button" onclick="closeRoleModal()">&times;</button></div>
 		<div class="modal-body"><form id="role-form">
 			<input type="hidden" id="role-id">
-			<div class="form-row"><div class="form-group"><label class="form-label">Nombre (código) *</label><input type="text" class="form-input" id="role-nombre" required></div><div class="form-group"><label class="form-label">Nombre visible *</label><input type="text" class="form-input" id="role-display" required></div></div>
-			<div class="form-group"><label class="form-label">Descripción</label><input type="text" class="form-input" id="role-desc"></div>
-			<div class="form-group"><label class="form-label">Nivel</label><input type="number" class="form-input" id="role-level" value="50" min="1" max="100"></div>
+			<div class="form-row"><div class="form-group"><label for="role-nombre" class="form-label">Nombre (código) *</label><input type="text" class="form-input" id="role-nombre" required></div><div class="form-group"><label for="role-display" class="form-label">Nombre visible *</label><input type="text" class="form-input" id="role-display" required></div></div>
+			<div class="form-group"><label for="role-desc" class="form-label">Descripción</label><input type="text" class="form-input" id="role-desc"></div>
+			<div class="form-group"><label for="role-level" class="form-label">Nivel</label><input type="number" class="form-input" id="role-level" value="50" min="1" max="100"></div>
 			<div class="form-group"><label class="form-label">Permisos</label><div id="permissions-list" style="max-height:300px;overflow-y:auto;"></div></div>
 		</form></div>
 		<div class="modal-footer"><button class="btn btn-secondary" onclick="closeRoleModal()">Cancelar</button><button class="btn btn-primary" onclick="saveRole()">Guardar</button></div>

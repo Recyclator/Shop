@@ -14,7 +14,7 @@ const Toast = {
                 display: flex;
                 flex-direction: column;
                 gap: 10px;
-                max-width: 360px;
+                width: min(360px, calc(100vw - 40px));
             }
             .toast {
                 padding: 14px 18px;
@@ -45,7 +45,7 @@ const Toast = {
             .toast-error .toast-icon { background: rgba(239,68,68,0.2); color: #ef4444; }
             .toast-warning .toast-icon { background: rgba(251,191,36,0.2); color: #fbbf24; }
             .toast-info .toast-icon { background: rgba(59,130,246,0.2); color: #3b82f6; }
-            .toast-content { flex: 1; }
+            .toast-content { flex: 1; min-width: 0; overflow-wrap: anywhere; }
             .toast-title { font-weight: 600; margin-bottom: 2px; }
             .toast-message { opacity: 0.85; font-size: 13px; }
             .toast-close {
@@ -53,7 +53,8 @@ const Toast = {
                 border: none;
                 color: var(--text-mut, #666);
                 cursor: pointer;
-                padding: 0;
+                padding: 4px;
+                min-width: 28px; min-height: 28px;
                 font-size: 18px;
                 line-height: 1;
             }
@@ -88,23 +89,43 @@ const Toast = {
         };
         
         toast.innerHTML = `
-            <div class="toast-icon">${icons[type]}</div>
+            <div class="toast-icon" aria-hidden="true">${icons[type] || icons.info}</div>
             <div class="toast-content">
-                <div class="toast-title">${title}</div>
-                <div class="toast-message">${message}</div>
+                <div class="toast-title"></div>
+                <div class="toast-message"></div>
             </div>
-            <button class="toast-close" onclick="this.parentElement.remove()">&times;</button>
+            <button type="button" class="toast-close" aria-label="Cerrar notificación">&times;</button>
         `;
         
+        toast.querySelector('.toast-title').textContent = title;
+        toast.querySelector('.toast-message').textContent = message;
+        toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
+        toast.setAttribute('aria-atomic', 'true');
         this.container.appendChild(toast);
         
-        if (duration > 0) {
-            setTimeout(() => {
+        let timer;
+        let removalTimer;
+        const pause = () => clearTimeout(timer);
+        const remove = () => {
+            clearTimeout(timer);
+            clearTimeout(removalTimer);
+            toast.remove();
+        };
+        const schedule = () => {
+            pause();
+            if (!toast.isConnected || duration <= 0 || toast.matches(':hover, :focus-within')) return;
+            timer = setTimeout(() => {
                 toast.classList.add('toast-out');
-                setTimeout(() => toast.remove(), 300);
+                removalTimer = setTimeout(remove, 300);
             }, duration);
-        }
-        
+        };
+        toast.querySelector('.toast-close').addEventListener('click', remove);
+        toast.addEventListener('mouseenter', pause);
+        toast.addEventListener('mouseleave', schedule);
+        toast.addEventListener('focusin', pause);
+        toast.addEventListener('focusout', () => setTimeout(schedule, 0));
+        schedule();
+
         return toast;
     },
     
